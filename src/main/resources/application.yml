@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: test-app
+  main:
+    allow-circular-references: true
+  datasource:
+    url: jdbc:mariadb://localhost:3306/testapp
+    username: ck
+    password: "0527"
+    driver-class-name: org.mariadb.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MariaDBDialect
+  thymeleaf:
+    cache: false
+  security:
+    user:
+      name: admin
+      password: admin
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
+  tomcat:
+    max-threads: 200
+    max-connections: 10000
+    accept-count: 100
+    connection-timeout: 20000
+
+logging:
+  level:
+    root: INFO
+    com.jacob.testapp: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+  file:
+    name: logs/test-app.log
+  logback:
+    rollingpolicy:
+      max-file-size: 10MB
+      max-history: 30 

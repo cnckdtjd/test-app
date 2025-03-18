@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Footer</title>
+</head>
+<body>
+    <footer th:fragment="footer" class="bg-dark text-white py-4 mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Test App</h5>
+                    <p>A sample application for load testing with 3,000 to 10,000 concurrent users.</p>
+                </div>
+                <div class="col-md-3">
+                    <h5>Links</h5>
+                    <ul class="list-unstyled">
+                        <li><a class="text-white" th:href="@{/}">Home</a></li>
+                        <li><a class="text-white" th:href="@{/products}">Products</a></li>
+                        <li><a class="text-white" th:href="@{/login}">Login</a></li>
+                        <li><a class="text-white" th:href="@{/register}">Register</a></li>
+                    </ul>
+                </div>
+                <div class="col-md-3">
+                    <h5>Contact</h5>
+                    <address>
+                        <p>Email: info@testapp.com</p>
+                        <p>Phone: +1 (123) 456-7890</p>
+                    </address>
+                </div>
+            </div>
+            <hr>
+            <div class="text-center">
+                <p>&copy; 2023 Test App. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+</body>
+</html> 
