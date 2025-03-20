@@ -87,7 +87,7 @@ public class ProductController {
     @GetMapping("/{id}")
     public String productDetail(@PathVariable Long id, Model model, Principal principal) {
         // 상품 정보 가져오기
-        Optional<Product> product = productService.findById(id);
+        Optional<Product> product = Optional.ofNullable(productService.findById(id));
         if (product.isEmpty()) {
             return "redirect:/products";
         }

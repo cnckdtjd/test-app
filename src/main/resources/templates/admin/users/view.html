@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{admin/layout}">
+<head>
+    <title>사용자 상세 정보</title>
+</head>
+<body>
+    <section layout:fragment="content">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>사용자 상세 정보</h2>
+            <div>
+                <a th:href="@{/admin/users}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> 목록으로 돌아가기
+                </a>
+            </div>
+        </div>
+        
+        <!-- 알림 메시지 (Controller에서 RedirectAttributes로 전달됨) -->
+        <div th:if="${successMessage}" class="alert alert-success" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i> <span th:text="${successMessage}">작업이 성공적으로 완료되었습니다.</span>
+        </div>
+        
+        <div th:if="${errorMessage}" class="alert alert-danger" role="alert">
+            <i class="bi bi-exclamation-circle-fill me-2"></i> <span th:text="${errorMessage}">오류가 발생했습니다.</span>
+        </div>
+
+        <!-- 사용자 기본 정보 -->
+        <div class="row">
+            <div class="col-lg-4 mb-4">
+                <div class="card shadow">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">기본 정보</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="text-center mb-4">
+                            <i class="bi bi-person-circle" style="font-size: 5rem; color: #4e73df;"></i>
+                            <h5 class="mt-3" th:text="${user.name}">사용자 이름</h5>
+                            <div class="mb-2">
+                                <span th:if="${user.role == T(com.jacob.testapp.user.entity.User.Role).ROLE_ADMIN}" class="badge bg-danger">관리자</span>
+                                <span th:if="${user.role == T(com.jacob.testapp.user.entity.User.Role).ROLE_USER}" class="badge bg-primary">사용자</span>
+                            </div>
+                            <div>
+                                <span th:if="${user.accountLocked}" class="badge bg-danger">계정 잠금</span>
+                                <span th:if="${!user.accountLocked && user.enabled}" class="badge bg-success">활성</span>
+                                <span th:if="${!user.accountLocked && !user.enabled}" class="badge bg-warning">비활성</span>
+                            </div>
+                        </div>
+                        
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item">
+                                <div class="row">
+                                    <div class="col-5 fw-bold">ID</div>
+                                    <div class="col-7" th:text="${user.id}">1</div>
+                                </div>
+                            </li>
+                            <li class="list-group-item">
+                                <div class="row">
+                                    <div class="col-5 fw-bold">사용자명</div>
+                                    <div class="col-7" th:text="${user.username}">username</div>
+                                </div>
+                            </li>
+                            <li class="list-group-item">
+                                <div class="row">
+                                    <div class="col-5 fw-bold">이메일</div>
+                                    <div class="col-7" th:text="${user.email}">email@example.com</div>
+                                </div>
+                            </li>
+                            <li class="list-group-item">
+                                <div class="row">
+                                    <div class="col-5 fw-bold">전화번호</div>
+                                    <div class="col-7" th:text="${user.phone != null ? user.phone : '없음'}">010-0000-0000</div>
+                                </div>
+                            </li>
+                            <li class="list-group-item">
+                                <div class="row">
+                                    <div class="col-5 fw-bold">가입일</div>
+                                    <div class="col-7" th:text="${#temporals.format(user.createdAt, 'yyyy-MM-dd HH:mm')}">2023-01-01 00:00</div>
+                                </div>
+                            </li>
+                            <li class="list-group-item">
+                                <div class="row">
+                                    <div class="col-5 fw-bold">로그인 시도</div>
+                                    <div class="col-7" th:text="${user.loginAttempts}">0</div>
+                                </div>
+                            </li>
+                            <li class="list-group-item" th:if="${user.lockTime != null}">
+                                <div class="row">
+                                    <div class="col-5 fw-bold">잠금 일시</div>
+                                    <div class="col-7" th:text="${#temporals.format(user.lockTime, 'yyyy-MM-dd HH:mm')}">2023-01-01 00:00</div>
+                                </div>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-8 mb-4">
+                <!-- 계정 관리 -->
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">계정 관리</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex flex-wrap mb-4">
+                            <form th:if="${!user.accountLocked}" 
+                                  th:action="@{/admin/users/{id}/lock(id=${user.id})}" 
+                                  method="post" 
+                                  class="me-2 mb-2">
+                                <button type="submit" class="btn btn-warning" 
+                                        onclick="return confirm('정말로 이 사용자 계정을 잠그시겠습니까?');">
+                                    <i class="bi bi-lock-fill"></i> 계정 잠금
+                                </button>
+                            </form>
+                            
+                            <form th:if="${user.accountLocked}" 
+                                  th:action="@{/admin/users/{id}/unlock(id=${user.id})}" 
+                                  method="post" 
+                                  class="me-2 mb-2">
+                                <button type="submit" class="btn btn-success" 
+                                        onclick="return confirm('이 사용자 계정의 잠금을 해제하시겠습니까?');">
+                                    <i class="bi bi-unlock-fill"></i> 계정 잠금 해제
+                                </button>
+                            </form>
+                        </div>
+                        
+                        <h6 class="font-weight-bold">주의 사항</h6>
+                        <ul>
+                            <li>계정을 잠그면 사용자는 로그인할 수 없습니다.</li>
+                            <li>잠금 해제 시, 로그인 실패 카운트가 초기화됩니다.</li>
+                            <li>관리자 계정에 대한 잠금은 신중히 처리해야 합니다.</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <!-- 주문 히스토리 -->
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">최근 주문 내역</h6>
+                    </div>
+                    <div class="card-body">
+                        <div th:if="${user.orders != null && !user.orders.isEmpty()}" class="table-responsive">
+                            <table class="table table-bordered table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>주문 ID</th>
+                                        <th>주문 날짜</th>
+                                        <th>금액</th>
+                                        <th>상태</th>
+                                        <th>관리</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr th:each="order : ${user.orders.size() > 5 ? user.orders.subList(0, 5) : user.orders}">
+                                        <td th:text="${order.id}">1</td>
+                                        <td th:text="${#temporals.format(order.createdAt, 'yyyy-MM-dd HH:mm')}">2023-01-01 00:00</td>
+                                        <td th:text="${#numbers.formatCurrency(order.totalAmount)}">₩50,000</td>
+                                        <td>
+                                            <span th:if="${order.status.name() == 'PENDING'}" class="badge bg-warning">대기 중</span>
+                                            <span th:if="${order.status.name() == 'PROCESSING'}" class="badge bg-primary">처리 중</span>
+                                            <span th:if="${order.status.name() == 'SHIPPED'}" class="badge bg-info">배송 중</span>
+                                            <span th:if="${order.status.name() == 'DELIVERED'}" class="badge bg-success">배송 완료</span>
+                                            <span th:if="${order.status.name() == 'CANCELLED'}" class="badge bg-danger">취소됨</span>
+                                        </td>
+                                        <td>
+                                            <a th:href="@{/admin/orders/{id}(id=${order.id})}" class="btn btn-sm btn-info">상세</a>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <div class="text-center mt-3" th:if="${user.orders.size() > 5}">
+                                <a th:href="@{/admin/orders(userId=${user.id})}" class="btn btn-sm btn-outline-primary">모든 주문 보기</a>
+                            </div>
+                        </div>
+                        <div th:if="${user.orders == null || user.orders.isEmpty()}" class="text-center py-4">
+                            <i class="bi bi-bag-x" style="font-size: 2rem; color: #dddfeb;"></i>
+                            <p class="mt-2">주문 내역이 없습니다.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</body>
+</html> 

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{admin/layout}">
+<head>
+    <title>오류 발생</title>
+</head>
+<body>
+    <section layout:fragment="content">
+        <div class="d-flex justify-content-center align-items-center" style="height: 70vh;">
+            <div class="card shadow text-center" style="max-width: 500px;">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-danger">오류가 발생했습니다</h6>
+                </div>
+                <div class="card-body">
+                    <div class="p-4">
+                        <i class="bi bi-exclamation-triangle text-danger" style="font-size: 3rem;"></i>
+                        <h2 class="mt-3 mb-4 text-danger" th:text="${status ?: '오류'}">500</h2>
+                        <p class="lead mb-4" th:text="${errorMessage ?: '서버에서 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'}">
+                            서버에서 오류가 발생했습니다. 잠시 후 다시 시도해주세요.
+                        </p>
+                        <p class="small text-secondary mb-4" th:if="${timestamp}" th:text="${#temporals.format(timestamp, 'yyyy-MM-dd HH:mm:ss')}">
+                            2023-06-15 14:30:25
+                        </p>
+                        <div class="text-center">
+                            <a href="/admin/dashboard" class="btn btn-primary mr-2">
+                                <i class="bi bi-speedometer2"></i> 대시보드로 이동
+                            </a>
+                            <button type="button" class="btn btn-outline-secondary" onclick="window.history.back();">
+                                <i class="bi bi-arrow-left"></i> 이전 페이지로
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer py-3" th:if="${trace != null and #strings.length(trace) > 0}">
+                    <div class="text-left">
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-toggle="collapse" data-target="#errorDetails" aria-expanded="false" aria-controls="errorDetails">
+                            <i class="bi bi-info-circle"></i> 오류 상세 정보
+                        </button>
+                        <div class="collapse mt-3" id="errorDetails">
+                            <div class="card card-body">
+                                <pre class="text-left small overflow-auto" style="max-height: 300px;" th:text="${trace}">스택 트레이스 정보</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</body>
+</html> 

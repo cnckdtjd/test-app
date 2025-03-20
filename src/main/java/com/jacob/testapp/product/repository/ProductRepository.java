@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import jakarta.persistence.LockModeType;
 import java.util.List;
@@ -16,13 +17,13 @@ import java.util.Optional;
 @Repository
 public interface ProductRepository extends JpaRepository<Product, Long> {
 
-    Page<Product> findByActiveTrue(Pageable pageable);
+    Page<Product> findByStatusEquals(Product.Status status, Pageable pageable);
     
-    Page<Product> findByActiveTrueAndNameContaining(String name, Pageable pageable);
+    Page<Product> findByStatusEqualsAndNameContaining(Product.Status status, String name, Pageable pageable);
     
-    Page<Product> findByActiveTrueAndCategory(Product.Category category, Pageable pageable);
+    Page<Product> findByStatusEqualsAndCategory(Product.Status status, Product.Category category, Pageable pageable);
     
-    Page<Product> findByActiveTrueAndNameContainingAndCategory(String name, Product.Category category, Pageable pageable);
+    Page<Product> findByStatusEqualsAndNameContainingAndCategory(Product.Status status, String name, Product.Category category, Pageable pageable);
     
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT p FROM Product p WHERE p.id = ?1")
@@ -41,4 +42,19 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     Page<Product> findByNameContaining(String name, Pageable pageable);
     Page<Product> findByCategory(Product.Category category, Pageable pageable);
     Page<Product> findByNameContainingAndCategory(String name, Product.Category category, Pageable pageable);
+    
+    /**
+     * ID 범위에 해당하는 상품을 삭제
+     * @param startId 시작 ID
+     * @param endId 종료 ID
+     */
+    @Modifying
+    @Transactional
+    @Query("DELETE FROM Product p WHERE p.id >= ?1 AND p.id <= ?2")
+    void deleteByIdBetween(Long startId, Long endId);
+
+    List<Product> findByCategoryOrderByPriceAsc(Product.Category category);
+    List<Product> findByNameContainingIgnoreCase(String keyword);
+    List<Product> findByNameStartingWith(String prefix);
+    List<Product> findTop5ByOrderByCreatedAtDesc();
 } 

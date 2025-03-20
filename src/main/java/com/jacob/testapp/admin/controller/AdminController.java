@@ -1,17 +1,25 @@
 package com.jacob.testapp.admin.controller;
 
+import com.jacob.testapp.admin.service.StatisticsService;
+import com.jacob.testapp.admin.service.SystemMonitorService;
+import com.jacob.testapp.admin.service.TestDataService;
+import com.jacob.testapp.admin.service.UserExportService;
 import com.jacob.testapp.order.entity.Order;
 import com.jacob.testapp.product.entity.Product;
 import com.jacob.testapp.user.entity.User;
 import com.jacob.testapp.order.service.OrderService;
 import com.jacob.testapp.product.service.ProductService;
 import com.jacob.testapp.user.service.UserService;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -24,6 +32,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Controller
 @RequestMapping("/admin")
 @RequiredArgsConstructor
@@ -32,24 +41,49 @@ public class AdminController {
     private final UserService userService;
     private final ProductService productService;
     private final OrderService orderService;
+    private final SystemMonitorService systemMonitorService;
+    private final TestDataService testDataService;
+    private final StatisticsService statisticsService;
+    private final UserExportService userExportService;
 
-    @GetMapping
-    public String adminDashboard(Model model) {
-        // 사용자, 상품, 주문 수 조회
-        long userCount = userService.findAll().size();
-        long productCount = productService.findAll().size();
+    /**
+     * 관리자 대시보드
+     */
+    @GetMapping("/dashboard")
+    public String dashboard(Model model) {
+        log.info("관리자 대시보드 페이지 요청");
         
-        // 상품 카테고리 목록
-        model.addAttribute("categories", Product.Category.values());
-        
-        // 주문 상태 목록
-        model.addAttribute("orderStatuses", Order.OrderStatus.values());
-        
-        // 통계 데이터
-        model.addAttribute("userCount", userCount);
-        model.addAttribute("productCount", productCount);
-        
-        return "admin/dashboard";
+        try {
+            // 사용자 통계
+            long userCount = userService.countUsers();
+            model.addAttribute("userCount", userCount);
+            
+            // 상품 통계
+            long productCount = productService.countProducts();
+            model.addAttribute("productCount", productCount);
+            
+            // 주문 통계 (임시 더미 데이터, 실제로는 OrderService에서 가져와야 함)
+            model.addAttribute("orderCount", 0);
+            model.addAttribute("totalSales", "0");
+            
+            // 시스템 자원 사용량 정보
+            Map<String, Object> systemResources = systemMonitorService.getSystemResources();
+            model.addAttribute("systemResources", systemResources);
+            
+            return "admin/dashboard";
+        } catch (Exception e) {
+            log.error("대시보드 데이터 로딩 중 오류 발생", e);
+            model.addAttribute("errorMessage", "대시보드 데이터를 불러오는 중 오류가 발생했습니다.");
+            return "admin/error";
+        }
+    }
+
+    /**
+     * 루트 경로 요청을 대시보드로 리다이렉트
+     */
+    @GetMapping("")
+    public String redirectToDashboard() {
+        return "redirect:/admin/dashboard";
     }
 
     // 사용자 관리
@@ -71,30 +105,61 @@ public class AdminController {
 
     @GetMapping("/users/{id}")
     public String viewUser(@PathVariable Long id, Model model) {
-        User user = userService.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid user ID: " + id));
+        User user = userService.findById(id);
         model.addAttribute("user", user);
         return "admin/users/view";
     }
 
     @PostMapping("/users/{id}/lock")
     public String lockUser(@PathVariable Long id, RedirectAttributes redirectAttributes) {
-        User user = userService.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid user ID: " + id));
+        User user = userService.findById(id);
         
         userService.lockAccount(user.getUsername());
-        redirectAttributes.addFlashAttribute("successMessage", "User account locked");
+        redirectAttributes.addFlashAttribute("successMessage", "사용자 계정이 잠금 처리되었습니다.");
+
         return "redirect:/admin/users/" + id;
     }
 
     @PostMapping("/users/{id}/unlock")
     public String unlockUser(@PathVariable Long id, RedirectAttributes redirectAttributes) {
-        User user = userService.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid user ID: " + id));
+        User user = userService.findById(id);
         
         userService.unlockAccount(user.getUsername());
-        redirectAttributes.addFlashAttribute("successMessage", "User account unlocked");
+        redirectAttributes.addFlashAttribute("successMessage", "사용자 계정 잠금이 해제되었습니다.");
+
         return "redirect:/admin/users/" + id;
+    }
+    
+    /**
+     * 사용자 목록 CSV 내보내기
+     */
+    @GetMapping("/users/export")
+    public void exportUsersToCsv(HttpServletResponse response) throws Exception {
+        log.debug("사용자 목록 CSV 내보내기 요청");
+        
+        response.setContentType("text/csv");
+        response.setCharacterEncoding("UTF-8");
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=users.csv");
+        
+        byte[] csvData = userExportService.exportUsersToCsv();
+        response.getOutputStream().write(csvData);
+        response.getOutputStream().flush();
+    }
+    
+    /**
+     * 사용자 인증 정보 CSV 내보내기
+     */
+    @GetMapping("/users/export-credentials")
+    public void exportUserCredentialsToCsv(HttpServletResponse response) throws Exception {
+        log.debug("사용자 인증 정보 CSV 내보내기 요청");
+        
+        response.setContentType("text/csv");
+        response.setCharacterEncoding("UTF-8");
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=user_credentials.csv");
+        
+        byte[] csvData = userExportService.exportUserCredentialsToCsv();
+        response.getOutputStream().write(csvData);
+        response.getOutputStream().flush();
     }
 
     // 상품 관리
@@ -131,14 +196,13 @@ public class AdminController {
         }
         
         productService.save(product);
-        redirectAttributes.addFlashAttribute("successMessage", "Product created successfully");
+        redirectAttributes.addFlashAttribute("successMessage", "상품이 성공적으로 생성되었습니다.");
         return "redirect:/admin/products";
     }
 
     @GetMapping("/products/{id}/edit")
     public String editProductForm(@PathVariable Long id, Model model) {
-        Product product = productService.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid product ID: " + id));
+        Product product = productService.findById(id);
         
         model.addAttribute("product", product);
         model.addAttribute("categories", Product.Category.values());
@@ -154,8 +218,7 @@ public class AdminController {
             return "admin/products/edit";
         }
         
-        Product existingProduct = productService.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid product ID: " + id));
+        Product existingProduct = productService.findById(id);
         
         existingProduct.setName(product.getName());
         existingProduct.setDescription(product.getDescription());
@@ -163,10 +226,11 @@ public class AdminController {
         existingProduct.setStock(product.getStock());
         existingProduct.setImageUrl(product.getImageUrl());
         existingProduct.setCategory(product.getCategory());
-        existingProduct.setActive(product.isActive());
+        existingProduct.setStatus(product.getStatus());
         
         productService.save(existingProduct);
-        redirectAttributes.addFlashAttribute("successMessage", "Product updated successfully");
+        redirectAttributes.addFlashAttribute("successMessage", "상품이 성공적으로 업데이트되었습니다.");
+        
         return "redirect:/admin/products";
     }
 
@@ -213,49 +277,115 @@ public class AdminController {
             RedirectAttributes redirectAttributes) {
         
         orderService.updateOrderStatus(id, status);
-        redirectAttributes.addFlashAttribute("successMessage", "Order status updated successfully");
+        redirectAttributes.addFlashAttribute("successMessage", "주문 상태가 성공적으로 업데이트되었습니다.");
         return "redirect:/admin/orders/" + id;
     }
-
-    // 부하 테스트 데이터 생성 및 롤백 (모의 구현)
-    @PostMapping("/generate-test-data")
-    @ResponseBody
-    public ResponseEntity<Map<String, Object>> generateTestData(
-            @RequestParam(defaultValue = "100") int userCount,
-            @RequestParam(defaultValue = "1000") int productCount) {
-        
-        Map<String, Object> response = new HashMap<>();
+    
+    /**
+     * 상세 통계 화면
+     */
+    @GetMapping("/details")
+    public String details(Model model) {
+        log.info("관리자 상세 통계 페이지 요청");
         
         try {
-            // 실제로는 대량 데이터 생성 로직이 들어갈 자리
-            // 예: Faker 라이브러리 등을 사용하여 대량 데이터 생성
+            // 사용자 통계
+            Map<String, Object> userStats = new HashMap<>();
+            userStats.put("totalUsers", userService.countUsers());
+            userStats.put("activeUsers", userService.countUsersByStatus(com.jacob.testapp.user.entity.User.Status.ACTIVE));
+            userStats.put("lockedUsers", userService.countUsersByStatus(com.jacob.testapp.user.entity.User.Status.LOCKED));
+            userStats.put("newUsers", 0); // 최근 30일 신규 가입자 (실제 구현 필요)
+            userStats.put("monthlyRegistrations", "{}"); // 월별 가입자 데이터 (실제 구현 필요)
+            model.addAttribute("userStats", userStats);
             
-            response.put("success", true);
-            response.put("message", "Generated " + userCount + " users and " + productCount + " products");
-            return ResponseEntity.ok(response);
+            // 상품 통계
+            Map<String, Object> productStats = new HashMap<>();
+            productStats.put("totalProducts", productService.countProducts());
+            productStats.put("activeProducts", productService.countActiveProducts());
+            productStats.put("inactiveProducts", 0); // 비활성 상품 (실제 구현 필요)
+            productStats.put("outOfStockProducts", 0); // 재고 없는 상품 (실제 구현 필요)
+            productStats.put("productsByCategory", "{}"); // 카테고리별 상품 수 (실제 구현 필요)
+            productStats.put("productsByPriceRange", "{}"); // 가격대별 상품 수 (실제 구현 필요)
+            model.addAttribute("productStats", productStats);
+            
+            // 주문 통계 (임시 더미 데이터, 실제로는 OrderService에서 가져와야 함)
+            Map<String, Object> orderStats = new HashMap<>();
+            orderStats.put("totalOrders", 0);
+            orderStats.put("ordersByStatus", "{}");
+            orderStats.put("totalSales", "0");
+            orderStats.put("monthlySales", "{}");
+            model.addAttribute("orderStats", orderStats);
+            
+            return "admin/details";
         } catch (Exception e) {
-            response.put("success", false);
-            response.put("message", e.getMessage());
-            return ResponseEntity.badRequest().body(response);
+            log.error("상세 통계 데이터 로딩 중 오류 발생", e);
+            model.addAttribute("errorMessage", "상세 통계 데이터를 불러오는 중 오류가 발생했습니다.");
+            return "admin/error";
         }
     }
 
-    @PostMapping("/rollback-data")
+    /**
+     * 테스트 데이터 생성 API
+     */
+    @PostMapping("/test-data/generate")
     @ResponseBody
-    public ResponseEntity<Map<String, Object>> rollbackData() {
-        Map<String, Object> response = new HashMap<>();
+    public ResponseEntity<Map<String, String>> generateTestData(
+            @RequestParam(defaultValue = "10") int userCount, 
+            @RequestParam(defaultValue = "50") int productCount) {
+        
+        log.info("테스트 데이터 생성 요청: 사용자 {}명, 상품 {}개", userCount, productCount);
+        
+        if (userCount > 1000) {
+            userCount = 1000; // 사용자 수 제한
+        }
+        
+        if (productCount > 5000) {
+            productCount = 5000; // 상품 수 제한
+        }
         
         try {
-            // 실제로는 데이터 롤백 로직이 들어갈 자리
-            // 예: DB 백업에서 복원, 특정 시점으로 되돌리기 등
+            String result = testDataService.generateTestData(userCount, productCount);
             
-            response.put("success", true);
-            response.put("message", "Data rollback completed successfully");
+            Map<String, String> response = new HashMap<>();
+            response.put("success", "true");
+            response.put("message", result);
+            
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            response.put("success", false);
-            response.put("message", e.getMessage());
-            return ResponseEntity.badRequest().body(response);
+            log.error("테스트 데이터 생성 중 오류 발생", e);
+            
+            Map<String, String> response = new HashMap<>();
+            response.put("success", "false");
+            response.put("message", "테스트 데이터 생성 중 오류가 발생했습니다: " + e.getMessage());
+            
+            return ResponseEntity.internalServerError().body(response);
+        }
+    }
+    
+    /**
+     * 테스트 데이터 롤백 API
+     */
+    @PostMapping("/test-data/rollback")
+    @ResponseBody
+    public ResponseEntity<Map<String, String>> rollbackTestData() {
+        log.info("테스트 데이터 롤백 요청");
+        
+        try {
+            String result = testDataService.rollbackTestData();
+            
+            Map<String, String> response = new HashMap<>();
+            response.put("success", "true");
+            response.put("message", result);
+            
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("테스트 데이터 롤백 중 오류 발생", e);
+            
+            Map<String, String> response = new HashMap<>();
+            response.put("success", "false");
+            response.put("message", "테스트 데이터 롤백 중 오류가 발생했습니다: " + e.getMessage());
+            
+            return ResponseEntity.internalServerError().body(response);
         }
     }
 } 

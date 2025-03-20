@@ -42,8 +42,9 @@ public class Product {
     @Column(nullable = false)
     private Category category;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private boolean active;
+    private Status status = Status.ACTIVE;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -56,7 +57,21 @@ public class Product {
     @Version
     private Long version;
 
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+
     public enum Category {
-        COURSE, BOOK, LECTURE, SEMINAR, OTHER
+        전자제품, 의류, 식품, 도서, 가구, 주방용품, 화장품, 스포츠용품, 완구, 문구
+    }
+
+    public enum Status {
+        ACTIVE, INACTIVE
     }
 } 

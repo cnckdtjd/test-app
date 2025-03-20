@@ -5,6 +5,9 @@ import com.jacob.testapp.user.repository.UserRepository;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,9 +15,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * 사용자 서비스
+ */
 @Service
 @Transactional(readOnly = true)
-public class UserService {
+public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -27,6 +33,23 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
+    @Override
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다: " + username));
+        
+        return org.springframework.security.core.userdetails.User
+                .withUsername(user.getUsername())
+                .password(user.getPassword())
+                .roles(user.getRole().name().substring(5)) // "ROLE_" 접두사 제거
+                .accountLocked(user.getStatus() == User.Status.LOCKED)
+                .disabled(user.getStatus() == User.Status.INACTIVE)
+                .build();
+    }
+
+    /**
+     * 모든 사용자 목록 조회
+     */
     public List<User> findAll() {
         return userRepository.findAll();
     }
@@ -35,8 +58,28 @@ public class UserService {
         return userRepository.findAll(pageable);
     }
 
-    public Optional<User> findById(Long id) {
-        return userRepository.findById(id);
+    /**
+     * 사용자 수 조회
+     */
+    public long countUsers() {
+        return userRepository.count();
+    }
+    
+    /**
+     * 특정 상태의 사용자 수 조회
+     */
+    public long countUsersByStatus(User.Status status) {
+        return userRepository.findAll().stream()
+                .filter(user -> user.getStatus() == status)
+                .count();
+    }
+
+    /**
+     * 사용자 ID로 사용자 조회
+     */
+    public User findById(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다. ID: " + id));
     }
 
     public Optional<User> findByUsername(String username) {
@@ -47,9 +90,13 @@ public class UserService {
         return userRepository.findByEmail(email);
     }
 
+    /**
+     * 사용자 저장
+     */
     @Transactional
     public User save(User user) {
-        if (user.getPassword() != null && !user.getPassword().startsWith("$2a$")) {
+        if (user.getId() == null) {
+            // 신규 사용자일 경우 비밀번호 암호화
             user.setPassword(passwordEncoder.encode(user.getPassword()));
         }
         return userRepository.save(user);
@@ -114,6 +161,9 @@ public class UserService {
         return userOpt.map(User::isAccountLocked).orElse(false);
     }
 
+    /**
+     * 사용자 삭제
+     */
     @Transactional
     public void delete(Long id) {
         userRepository.deleteById(id);

@@ -76,4 +76,25 @@ public class User {
     public enum Role {
         ROLE_USER, ROLE_ADMIN
     }
+
+    public enum Status {
+        ACTIVE, INACTIVE, LOCKED
+    }
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Status status;
+
+    @Column(nullable = false)
+    private LocalDateTime lastLoginAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 } 

@@ -10,6 +10,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
@@ -51,7 +52,11 @@ public class DataInitializer implements CommandLineRunner {
                     .name("관리자")
                     .email("admin@example.com")
                     .role(User.Role.ROLE_ADMIN)
+                    .status(User.Status.ACTIVE)
                     .enabled(true)
+                    .lastLoginAt(LocalDateTime.now())
+                    .loginAttempts(0)
+                    .accountLocked(false)
                     .build();
             userRepository.save(admin);
             System.out.println("관리자 계정이 생성되었습니다: admin/admin");
@@ -66,7 +71,11 @@ public class DataInitializer implements CommandLineRunner {
                     .name("테스트 사용자")
                     .email("user@example.com")
                     .role(User.Role.ROLE_USER)
+                    .status(User.Status.ACTIVE)
                     .enabled(true)
+                    .lastLoginAt(LocalDateTime.now())
+                    .loginAttempts(0)
+                    .accountLocked(false)
                     .build();
             userRepository.save(user);
             System.out.println("테스트 사용자 계정이 생성되었습니다: user/user");
@@ -120,7 +129,7 @@ public class DataInitializer implements CommandLineRunner {
                     .stock(stock)
                     .imageUrl(imageUrl)
                     .category(category)
-                    .active(true)
+                    .status(Product.Status.ACTIVE)
                     .build();
             
             productRepository.save(product);
