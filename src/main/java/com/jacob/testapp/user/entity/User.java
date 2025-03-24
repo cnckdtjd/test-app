@@ -59,6 +59,9 @@ public class User {
     @Column(name = "lock_time")
     private LocalDateTime lockTime;
 
+    @Column(length = 255)
+    private String remarks;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

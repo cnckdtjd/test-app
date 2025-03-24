@@ -40,4 +40,8 @@ public interface UserRepository extends JpaRepository<User, Long> {
     void deleteByIdBetween(Long startId, Long endId);
 
     List<User> findByUsernameStartingWith(String prefix);
+
+    List<User> findByRemarks(String remarks);
+
+    long countByStatus(User.Status status);
 } 

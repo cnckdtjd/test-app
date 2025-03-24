@@ -57,4 +57,12 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     List<Product> findByNameContainingIgnoreCase(String keyword);
     List<Product> findByNameStartingWith(String prefix);
     List<Product> findTop5ByOrderByCreatedAtDesc();
+
+    Page<Product> findByStatusAndCategoryOrderByCreatedAtDesc(Product.Status status, Product.Category category, Pageable pageable);
+    Page<Product> findByStatusOrderByCreatedAtDesc(Product.Status status, Pageable pageable);
+    long countByStatus(Product.Status status);
+    List<Product> findByRemarks(String remarks);
+    
+    @Query("SELECT COUNT(p) FROM Product p WHERE p.status = 'ACTIVE'")
+    long countActiveProducts();
 } 

@@ -46,6 +46,9 @@ public class Product {
     @Column(nullable = false)
     private Status status = Status.ACTIVE;
 
+    @Column(length = 255)
+    private String remarks;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

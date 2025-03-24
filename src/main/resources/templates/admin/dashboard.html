@@ -79,8 +79,54 @@
             </div>
         </div>
 
+        <!-- 테스트 데이터 관리 -->
+        <div class="row">
+            <!-- 데이터 생성 -->
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">테스트 데이터 생성</h6>
+                    </div>
+                    <div class="card-body">
+                        <p>부하 테스트를 위한 대량의 데이터를 자동으로 생성합니다.</p>
+                        <form id="generateDataForm">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="userCount" class="form-label">사용자 수</label>
+                                    <input type="number" class="form-control" id="userCount" value="100" min="1" max="10000">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="productCount" class="form-label">상품 수</label>
+                                    <input type="number" class="form-control" id="productCount" value="1000" min="1" max="10000">
+                                </div>
+                            </div>
+                            <button type="button" id="generateDataBtn" class="btn btn-primary">
+                                <i class="bi bi-database-add"></i> 데이터 생성
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 데이터 롤백 -->
+            <div class="col-lg-6 mb-4">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">테스트 데이터 롤백</h6>
+                    </div>
+                    <div class="card-body">
+                        <p>생성된 테스트 데이터를 롤백합니다. 관리자 계정과 기본 사용자 계정은 유지됩니다.</p>
+                        <button type="button" id="rollbackDataBtn" class="btn btn-danger">
+                            <i class="bi bi-database-x"></i> 데이터 롤백
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- 시스템 자원 모니터링 -->
         <div class="row">
+            <h4 class="mb-3 mt-2">시스템 자원 모니터링</h4>
             <!-- CPU 사용률 카드 -->
             <div class="col-xl-4 col-md-6 mb-4">
                 <div class="card shadow h-100">
@@ -159,51 +205,6 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 테스트 데이터 관리 -->
-        <div class="row">
-            <!-- 데이터 생성 -->
-            <div class="col-lg-6 mb-4">
-                <div class="card shadow mb-4">
-                    <div class="card-header py-3">
-                        <h6 class="m-0 font-weight-bold text-primary">테스트 데이터 생성</h6>
-                    </div>
-                    <div class="card-body">
-                        <p>부하 테스트를 위한 대량의 데이터를 자동으로 생성합니다.</p>
-                        <form id="generateDataForm">
-                            <div class="row mb-3">
-                                <div class="col-md-6">
-                                    <label for="userCount" class="form-label">사용자 수</label>
-                                    <input type="number" class="form-control" id="userCount" value="100" min="1" max="10000">
-                                </div>
-                                <div class="col-md-6">
-                                    <label for="productCount" class="form-label">상품 수</label>
-                                    <input type="number" class="form-control" id="productCount" value="1000" min="1" max="10000">
-                                </div>
-                            </div>
-                            <button type="button" id="generateDataBtn" class="btn btn-primary">
-                                <i class="bi bi-database-add"></i> 데이터 생성
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 데이터 롤백 -->
-            <div class="col-lg-6 mb-4">
-                <div class="card shadow mb-4">
-                    <div class="card-header py-3">
-                        <h6 class="m-0 font-weight-bold text-primary">테스트 데이터 롤백</h6>
-                    </div>
-                    <div class="card-body">
-                        <p>생성된 테스트 데이터를 롤백합니다. 관리자 계정과 기본 사용자 계정은 유지됩니다.</p>
-                        <button type="button" id="rollbackDataBtn" class="btn btn-danger">
-                            <i class="bi bi-database-x"></i> 데이터 롤백
-                        </button>
                     </div>
                 </div>
             </div>

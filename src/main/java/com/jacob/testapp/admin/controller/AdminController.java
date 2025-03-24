@@ -10,6 +10,7 @@ import com.jacob.testapp.user.entity.User;
 import com.jacob.testapp.order.service.OrderService;
 import com.jacob.testapp.product.service.ProductService;
 import com.jacob.testapp.user.service.UserService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +46,15 @@ public class AdminController {
     private final TestDataService testDataService;
     private final StatisticsService statisticsService;
     private final UserExportService userExportService;
+
+    /**
+     * 모든 관리자 컨트롤러 메소드에 requestURI 모델 속성을 자동으로 추가합니다.
+     * Thymeleaf 3.1 이상에서는 #request 객체에 직접 접근할 수 없기 때문에 필요합니다.
+     */
+    @ModelAttribute
+    public void addCommonAttributes(HttpServletRequest request, Model model) {
+        model.addAttribute("requestURI", request.getRequestURI());
+    }
 
     /**
      * 관리자 대시보드
