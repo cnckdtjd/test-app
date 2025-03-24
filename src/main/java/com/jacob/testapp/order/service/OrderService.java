@@ -81,14 +81,18 @@ public class OrderService {
         }
 
         // 주문 생성
-        Order order = Order.builder()
-                .user(user)
-                .totalAmount(BigDecimal.valueOf(cart.getTotalPrice()))
-                .status(Order.OrderStatus.PENDING)
-                .shippingAddress(shippingAddress)
-                .paymentMethod(paymentMethod)
-                .build();
-
+        Order order = new Order();
+        order.setUser(user);
+        order.setTotalAmount(cart.getTotalPrice());
+        order.setSubtotalAmount(cart.getTotalPrice());
+        order.setShippingAmount(0.0);
+        order.setDiscountAmount(0.0);
+        order.setStatus(Order.OrderStatus.PENDING);
+        order.setPaymentMethod(paymentMethod);
+        order.setReceiverName(user.getName());
+        order.setReceiverPhone(user.getPhone());
+        order.setReceiverAddress1(shippingAddress);
+        
         order = orderRepository.save(order);
 
         // 장바구니 아이템을 주문 아이템으로 변환
@@ -104,12 +108,11 @@ public class OrderService {
             productService.decreaseStock(product.getId(), cartItem.getQuantity());
             
             // 주문 아이템 생성
-            OrderItem orderItem = OrderItem.builder()
-                    .order(order)
-                    .product(product)
-                    .quantity(cartItem.getQuantity())
-                    .price(product.getPrice())
-                    .build();
+            OrderItem orderItem = new OrderItem();
+            orderItem.setOrder(order);
+            orderItem.setProduct(product);
+            orderItem.setQuantity(cartItem.getQuantity());
+            orderItem.setPrice(product.getPrice().doubleValue());
             
             order.addItem(orderItem);
         }
@@ -134,7 +137,7 @@ public class OrderService {
         Order order = orderRepository.findByIdWithItems(orderId)
                 .orElseThrow(() -> new IllegalArgumentException("Order not found"));
         
-        if (order.getStatus() == Order.OrderStatus.DELIVERED) {
+        if (order.getStatus() == Order.OrderStatus.COMPLETED) {
             throw new IllegalStateException("Cannot cancel delivered order");
         }
         
@@ -143,7 +146,7 @@ public class OrderService {
             productService.restoreStock(item.getProduct().getId(), item.getQuantity());
         }
         
-        order.setStatus(Order.OrderStatus.CANCELED);
+        order.setStatus(Order.OrderStatus.CANCELLED);
         return orderRepository.save(order);
     }
 
@@ -161,7 +164,6 @@ public class OrderService {
         // 실제로는 외부 결제 API 연동 로직이 들어갈 자리
         
         order.setStatus(Order.OrderStatus.PAID);
-        order.setPaymentTransactionId(transactionId);
         return orderRepository.save(order);
     }
 } 

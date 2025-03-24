@@ -13,6 +13,7 @@ import java.util.Optional;
 @Repository
 public interface CartRepository extends JpaRepository<Cart, Long> {
 
+    @Query("SELECT c FROM Cart c LEFT JOIN FETCH c.cartItems ci LEFT JOIN FETCH ci.product WHERE c.user = ?1")
     Optional<Cart> findByUser(User user);
     
     @Lock(LockModeType.PESSIMISTIC_WRITE)
@@ -23,6 +24,6 @@ public interface CartRepository extends JpaRepository<Cart, Long> {
     @Query("SELECT c FROM Cart c WHERE c.user.id = ?1")
     Optional<Cart> findByUserIdWithOptimisticLock(Long userId);
     
-    @Query("SELECT c FROM Cart c JOIN FETCH c.cartItems WHERE c.user.id = ?1")
+    @Query("SELECT c FROM Cart c JOIN FETCH c.cartItems ci JOIN FETCH ci.product WHERE c.user.id = ?1")
     Optional<Cart> findByUserIdWithItems(Long userId);
 } 

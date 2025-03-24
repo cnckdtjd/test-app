@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -65,4 +66,54 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     
     @Query("SELECT COUNT(p) FROM Product p WHERE p.status = 'ACTIVE'")
     long countActiveProducts();
+    
+    // 관리자 페이지 추가 메소드
+    
+    /**
+     * 상품명 + 카테고리 + 상태로 검색
+     */
+    Page<Product> findByNameContainingAndCategoryAndStatus(String name, Product.Category category, Product.Status status, Pageable pageable);
+    
+    /**
+     * 상품명 + 상태로 검색
+     */
+    Page<Product> findByNameContainingAndStatus(String name, Product.Status status, Pageable pageable);
+    
+    /**
+     * 카테고리 + 상태로 검색
+     */
+    Page<Product> findByCategoryAndStatus(Product.Category category, Product.Status status, Pageable pageable);
+    
+    /**
+     * 상태로 검색
+     */
+    Page<Product> findByStatus(Product.Status status, Pageable pageable);
+    
+    /**
+     * 재고가 특정 수량 이하인 상품 수 조회
+     */
+    long countByStockLessThanEqual(int stock);
+    
+    /**
+     * 카테고리별 상품 수 조회
+     */
+    long countByCategory(Product.Category category);
+    
+    /**
+     * 카테고리별 재고 일괄 업데이트
+     */
+    @Modifying
+    @Transactional
+    @Query("UPDATE Product p SET p.stock = ?2 WHERE p.category = ?1")
+    int updateStockByCategory(Product.Category category, int stock);
+
+    @Modifying
+    @Transactional
+    @Query("UPDATE Product p SET p.stock = p.stock - :quantity WHERE p.id = :id AND p.stock >= :quantity")
+    int decreaseStock(@Param("id") Long id, @Param("quantity") int quantity);
+    
+    @Modifying
+    @Transactional
+    @Query("UPDATE Product p SET p.stock = p.stock + :quantity WHERE p.id = :id")
+    int increaseStock(@Param("id") Long id, @Param("quantity") int quantity);
 } 

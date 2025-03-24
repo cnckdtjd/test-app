@@ -32,25 +32,22 @@ public class CartService {
         this.userRepository = userRepository;
     }
     
-    // 사용자의 장바구니 찾기
+    /**
+     * 사용자의 장바구니를 조회합니다.
+     */
     public Optional<Cart> findByUser(User user) {
-        return cartRepository.findByUser(user);
+        return cartRepository.findByUserIdWithItems(user.getId());
     }
     
     // 사용자 ID로 장바구니와 아이템들을 함께 조회
     public Optional<Cart> findByUserWithItems(Long userId) {
-        Optional<User> userOpt = userRepository.findById(userId);
-        if (userOpt.isPresent()) {
-            User user = userOpt.get();
-            return findByUser(user);
-        }
-        return Optional.empty();
+        return cartRepository.findByUserIdWithItems(userId);
     }
     
     // 장바구니 생성 또는 가져오기
     @Transactional
     public Cart getOrCreateCart(User user) {
-        return cartRepository.findByUser(user)
+        return cartRepository.findByUserIdWithItems(user.getId())
                 .orElseGet(() -> {
                     Cart cart = Cart.builder()
                             .user(user)

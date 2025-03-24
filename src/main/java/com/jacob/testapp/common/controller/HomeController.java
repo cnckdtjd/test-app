@@ -70,7 +70,7 @@ public class HomeController {
         model.addAttribute("user", user);
         
         // 장바구니 정보 가져오기
-        Optional<Cart> cart = cartService.findByUser(user);
+        Optional<Cart> cart = cartService.findByUserWithItems(user.getId());
         if (cart.isPresent()) {
             model.addAttribute("cartItemCount", cart.get().getCartItems().size());
             model.addAttribute("cartTotalPrice", cart.get().getTotalPrice());

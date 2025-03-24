@@ -1,11 +1,9 @@
 package com.jacob.testapp.order.entity;
 
+import com.jacob.testapp.product.entity.Product;
 import com.jacob.testapp.user.entity.User;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -27,31 +25,70 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
+    @Column(name = "order_number", unique = true, nullable = false)
     private String orderNumber;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id")
     private User user;
-
-    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<OrderItem> items = new ArrayList<>();
-
-    @Column(nullable = false, precision = 10, scale = 2)
-    private BigDecimal totalAmount;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private OrderStatus status;
 
-    @Column(length = 200)
-    private String shippingAddress;
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OrderItem> items = new ArrayList<>();
 
-    @Column(length = 20)
+    @Column(nullable = false)
     private String paymentMethod;
 
-    @Column(length = 100)
-    private String paymentTransactionId;
+    @Column
+    private String email;
+
+    @Column
+    private String phoneNumber;
+
+    @Column(nullable = false)
+    private String receiverName;
+
+    @Column(nullable = false)
+    private String receiverPhone;
+
+    @Column(nullable = false)
+    private String receiverZipcode;
+
+    @Column(nullable = false)
+    private String receiverAddress1;
+
+    @Column
+    private String receiverAddress2;
+
+    @Column
+    private String deliveryMessage;
+
+    @Column
+    private String trackingNumber;
+
+    @Column
+    private String carrier;
+
+    @Column
+    private String adminMemo;
+
+    @Column(nullable = false)
+    private Double totalAmount;
+
+    @Column(nullable = false)
+    private Double subtotalAmount;
+
+    @Column(nullable = false)
+    private Double shippingAmount;
+
+    @Column(nullable = false)
+    private Double discountAmount;
+
+    @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OrderHistory> history = new ArrayList<>();
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
@@ -64,8 +101,20 @@ public class Order {
     @Version
     private Long version;
 
+    @Getter
     public enum OrderStatus {
-        PENDING, PAID, PROCESSING, SHIPPED, DELIVERED, CANCELED, REFUNDED
+        PENDING("결제대기"),
+        PAID("결제완료"),
+        SHIPPING("배송중"),
+        COMPLETED("배송완료"),
+        CANCELLED("주문취소");
+
+        private final String displayName;
+
+        OrderStatus(String displayName) {
+            this.displayName = displayName;
+        }
+
     }
 
     @PrePersist
@@ -89,7 +138,14 @@ public class Order {
 
     private void recalculateTotalAmount() {
         totalAmount = items.stream()
-                .map(item -> item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .mapToDouble(item -> item.getPrice() * item.getQuantity())
+                .sum();
+        
+        // 배송비와 할인액 적용
+        if (subtotalAmount == null) subtotalAmount = totalAmount;
+        if (shippingAmount == null) shippingAmount = 0.0;
+        if (discountAmount == null) discountAmount = 0.0;
+        
+        totalAmount = subtotalAmount + shippingAmount - discountAmount;
     }
 } 

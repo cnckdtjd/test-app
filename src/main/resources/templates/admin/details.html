@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{admin/layout}">
+<head>
+    <style>
+        .stats-card {
+            border-radius: 0.5rem;
+            box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+            margin-bottom: 1.5rem;
+        }
+        .stats-card-header {
+            padding: 0.75rem 1.25rem;
+            margin-bottom: 0;
+            background-color: #f8f9fc;
+            border-bottom: 1px solid #e3e6f0;
+            border-radius: 0.5rem 0.5rem 0 0;
+        }
+        .stats-card-body {
+            padding: 1.25rem;
+        }
+        .stats-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-bottom: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <section layout:fragment="content">
+        <div class="d-sm-flex align-items-center justify-content-between mb-4">
+            <h2 class="h3 mb-0 text-gray-800">상세 통계</h2>
+            <button id="refreshStats" class="d-sm-inline-block btn btn-sm btn-primary shadow-sm">
+                <i class="bi bi-arrow-repeat"></i> 새로고침
+            </button>
+        </div>
+
+        <!-- 탭 메뉴 -->
+        <ul class="nav nav-tabs mb-4" id="statsTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="users-tab" data-bs-toggle="tab" data-bs-target="#users-stats" type="button" role="tab" aria-controls="users-stats" aria-selected="true">사용자 통계</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="products-tab" data-bs-toggle="tab" data-bs-target="#products-stats" type="button" role="tab" aria-controls="products-stats" aria-selected="false">상품 통계</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="orders-tab" data-bs-toggle="tab" data-bs-target="#orders-stats" type="button" role="tab" aria-controls="orders-stats" aria-selected="false">주문 통계</button>
+            </li>
+        </ul>
+
+        <!-- 탭 내용 -->
+        <div class="tab-content" id="statsTabContent">
+            <!-- 사용자 통계 탭 -->
+            <div class="tab-pane fade show active" id="users-stats" role="tabpanel" aria-labelledby="users-tab">
+                <div class="row">
+                    <!-- 사용자 요약 통계 카드 -->
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-primary shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">총 사용자</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" th:text="${userStats['totalUsers']}">0</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-people-fill fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-success shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">활성 사용자</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" th:text="${userStats['activeUsers']}">0</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-person-check-fill fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-warning shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">잠금 계정</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" th:text="${userStats['lockedUsers']}">0</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-person-lock fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-info shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">최근 30일 가입</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" th:text="${userStats['newUsers']}">0</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-person-plus-fill fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <!-- 월별 가입자 차트 -->
+                    <div class="col-md-12">
+                        <div class="stats-card">
+                            <div class="stats-card-header">
+                                <h6 class="m-0 font-weight-bold text-primary">월별 가입자 추이</h6>
+                            </div>
+                            <div class="stats-card-body">
+                                <div class="chart-container">
+                                    <canvas id="monthlyRegistrationChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 상품 통계 탭 -->
+            <div class="tab-pane fade" id="products-stats" role="tabpanel" aria-labelledby="products-tab">
+                <div class="row">
+                    <!-- 상품 요약 통계 카드 -->
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-primary shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">총 상품 수</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" th:text="${productStats['totalProducts']}">0</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-box-seam fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-success shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">활성 상품</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" th:text="${productStats['activeProducts']}">0</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-check-circle fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-warning shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">비활성 상품</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" th:text="${productStats['inactiveProducts']}">0</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-x-circle fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-danger shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">재고 없음</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" th:text="${productStats['outOfStockProducts']}">0</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-exclamation-triangle fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <!-- 카테고리별 상품 수 차트 -->
+                    <div class="col-md-6">
+                        <div class="stats-card">
+                            <div class="stats-card-header">
+                                <h6 class="m-0 font-weight-bold text-primary">카테고리별 상품 수</h6>
+                            </div>
+                            <div class="stats-card-body">
+                                <div class="chart-container">
+                                    <canvas id="productCategoryChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 가격대별 상품 수 차트 -->
+                    <div class="col-md-6">
+                        <div class="stats-card">
+                            <div class="stats-card-header">
+                                <h6 class="m-0 font-weight-bold text-primary">가격대별 상품 수</h6>
+                            </div>
+                            <div class="stats-card-body">
+                                <div class="chart-container">
+                                    <canvas id="productPriceRangeChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 주문 통계 탭 -->
+            <div class="tab-pane fade" id="orders-stats" role="tabpanel" aria-labelledby="orders-tab">
+                <div class="row">
+                    <!-- 주문 요약 통계 카드 -->
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-primary shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">총 주문 수</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" th:text="${orderStats['totalOrders']}">0</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-cart-fill fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-info shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">완료된 주문</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" th:text="${orderStats['completedOrders']}">0</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-check2-all fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-warning shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">처리 중인 주문</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" th:text="${orderStats['pendingOrders']}">0</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-hourglass-split fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-xl-3 col-md-6 mb-4">
+                        <div class="card border-left-success shadow h-100 py-2">
+                            <div class="card-body">
+                                <div class="row no-gutters align-items-center">
+                                    <div class="col mr-2">
+                                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">총 매출</div>
+                                        <div class="h5 mb-0 font-weight-bold text-gray-800" th:text="${orderStats['totalSales']}">₩0</div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <i class="bi bi-cash-stack fa-2x text-gray-300"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <!-- 월별 주문 수 차트 -->
+                    <div class="col-md-6">
+                        <div class="stats-card">
+                            <div class="stats-card-header">
+                                <h6 class="m-0 font-weight-bold text-primary">월별 주문 추이</h6>
+                            </div>
+                            <div class="stats-card-body">
+                                <div class="chart-container">
+                                    <canvas id="monthlyOrdersChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 월별 매출 차트 -->
+                    <div class="col-md-6">
+                        <div class="stats-card">
+                            <div class="stats-card-header">
+                                <h6 class="m-0 font-weight-bold text-primary">월별 매출 추이</h6>
+                            </div>
+                            <div class="stats-card-body">
+                                <div class="chart-container">
+                                    <canvas id="monthlySalesChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <!-- 주문 상태별 분포 차트 -->
+                    <div class="col-md-12">
+                        <div class="stats-card">
+                            <div class="stats-card-header">
+                                <h6 class="m-0 font-weight-bold text-primary">주문 상태별 분포</h6>
+                            </div>
+                            <div class="stats-card-body">
+                                <div class="chart-container">
+                                    <canvas id="orderStatusChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    
+    <!-- 페이지별 스크립트 -->
+    <th:block layout:fragment="scripts">
+        <script th:inline="javascript">
+            // 부트스트랩 탭 초기화
+            document.addEventListener('DOMContentLoaded', function() {
+                const tabList = document.querySelectorAll('#statsTab button');
+                tabList.forEach(function(tab) {
+                    tab.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        const target = document.querySelector(this.dataset.bsTarget);
+                        
+                        // 모든 탭 컨텐츠 숨기기
+                        document.querySelectorAll('.tab-pane').forEach(function(pane) {
+                            pane.classList.remove('show', 'active');
+                        });
+                        
+                        // 선택된 탭 활성화
+                        document.querySelectorAll('.nav-link').forEach(function(link) {
+                            link.classList.remove('active');
+                        });
+                        
+                        // 선택된 컨텐츠 표시
+                        this.classList.add('active');
+                        target.classList.add('show', 'active');
+                    });
+                });
+            });
+            
+            // 통계 데이터
+            const userStats = /*[[${userStats}]]*/ {};
+            const productStats = /*[[${productStats}]]*/ {};
+            const orderStats = /*[[${orderStats}]]*/ {};
+            
+            // 월별 가입자 차트
+            const monthlyRegistrationData = JSON.parse(/*[[${userStats['monthlyRegistrations']}]]*/ '{}');
+            const registrationLabels = Object.keys(monthlyRegistrationData).sort();
+            const registrationValues = registrationLabels.map(key => monthlyRegistrationData[key]);
+            
+            new Chart(document.getElementById('monthlyRegistrationChart').getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: registrationLabels,
+                    datasets: [{
+                        label: '월별 가입자 수',
+                        data: registrationValues,
+                        borderColor: '#4e73df',
+                        backgroundColor: 'rgba(78, 115, 223, 0.1)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                precision: 0
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 카테고리별 상품 차트
+            if (document.getElementById('productCategoryChart')) {
+                const productCategoryData = /*[[${productStats['productsByCategory']}]]*/ {};
+                const categoryLabels = Object.keys(productCategoryData);
+                const categoryValues = Object.values(productCategoryData);
+                
+                new Chart(document.getElementById('productCategoryChart').getContext('2d'), {
+                    type: 'pie',
+                    data: {
+                        labels: categoryLabels,
+                        datasets: [{
+                            data: categoryValues,
+                            backgroundColor: [
+                                '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#6f42c1', '#f39c12', '#3498db'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // 가격대별 상품 차트
+            if (document.getElementById('productPriceRangeChart')) {
+                const priceRangeData = /*[[${productStats['productsByPriceRange']}]]*/ {};
+                const priceRangeLabels = Object.keys(priceRangeData);
+                const priceRangeValues = Object.values(priceRangeData);
+                
+                new Chart(document.getElementById('productPriceRangeChart').getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: priceRangeLabels,
+                        datasets: [{
+                            label: '상품 수',
+                            data: priceRangeValues,
+                            backgroundColor: '#1cc88a',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    precision: 0
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // 월별 주문 차트
+            if (document.getElementById('monthlyOrdersChart')) {
+                const monthlyOrdersData = JSON.parse(/*[[${orderStats['monthlyOrders']}]]*/ '{}');
+                const orderLabels = Object.keys(monthlyOrdersData).sort();
+                const orderValues = orderLabels.map(key => monthlyOrdersData[key]);
+                
+                new Chart(document.getElementById('monthlyOrdersChart').getContext('2d'), {
+                    type: 'line',
+                    data: {
+                        labels: orderLabels,
+                        datasets: [{
+                            label: '주문 수',
+                            data: orderValues,
+                            borderColor: '#36b9cc',
+                            backgroundColor: 'rgba(54, 185, 204, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.3,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    precision: 0
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // 월별 매출 차트
+            if (document.getElementById('monthlySalesChart')) {
+                const monthlySalesData = JSON.parse(/*[[${orderStats['monthlySales']}]]*/ '{}');
+                const salesLabels = Object.keys(monthlySalesData).sort();
+                const salesValues = salesLabels.map(key => monthlySalesData[key]);
+                
+                new Chart(document.getElementById('monthlySalesChart').getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: salesLabels,
+                        datasets: [{
+                            label: '매출액 (원)',
+                            data: salesValues,
+                            backgroundColor: '#f6c23e',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // 주문 상태별 분포 차트
+            if (document.getElementById('orderStatusChart')) {
+                const orderStatusData = /*[[${orderStats['ordersByStatus']}]]*/ {};
+                const statusLabels = Object.keys(orderStatusData);
+                const statusValues = Object.values(orderStatusData);
+                
+                new Chart(document.getElementById('orderStatusChart').getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: statusLabels,
+                        datasets: [{
+                            data: statusValues,
+                            backgroundColor: [
+                                '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // 새로고침 버튼 이벤트
+            document.getElementById('refreshStats').addEventListener('click', function() {
+                location.reload();
+            });
+        </script>
+    </th:block>
+</body>
+</html> 

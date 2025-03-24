@@ -1,5 +1,7 @@
 package com.jacob.testapp.admin.controller;
 
+import com.jacob.testapp.admin.service.OrderAdminService;
+import com.jacob.testapp.admin.service.ProductAdminService;
 import com.jacob.testapp.admin.service.StatisticsService;
 import com.jacob.testapp.admin.service.SystemMonitorService;
 import com.jacob.testapp.admin.service.TestDataService;
@@ -19,8 +21,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -28,10 +30,12 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.HashMap;
-import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.text.NumberFormat;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Slf4j
 @Controller
@@ -42,10 +46,12 @@ public class AdminController {
     private final UserService userService;
     private final ProductService productService;
     private final OrderService orderService;
+    private final OrderAdminService orderAdminService;
     private final SystemMonitorService systemMonitorService;
     private final TestDataService testDataService;
     private final StatisticsService statisticsService;
     private final UserExportService userExportService;
+    private final ProductAdminService productAdminService;
 
     /**
      * 모든 관리자 컨트롤러 메소드에 requestURI 모델 속성을 자동으로 추가합니다.
@@ -219,19 +225,45 @@ public class AdminController {
         }
     }
 
-    // 상품 관리
+    // 상품 관리 - 개선된 버전
     @GetMapping("/products")
     public String listProducts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String category,
+            @RequestParam(required = false) String status,
             Model model) {
         
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<Product> products = productService.findAll(pageable);
+        log.info("상품 목록 페이지 요청 - 페이지: {}, 키워드: {}, 카테고리: {}, 상태: {}", page, keyword, category, status);
+        
+        // 정렬 설정
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+        
+        // 카테고리, 상태 파라미터 처리
+        Product.Category categoryEnum = null;
+        Product.Status statusEnum = null;
+        
+        if (category != null && !category.isEmpty()) {
+            try {
+                categoryEnum = Product.Category.valueOf(category);
+            } catch (IllegalArgumentException e) {
+                log.warn("잘못된 카테고리 값: {}", category);
+            }
+        }
+        
+        if (status != null && !status.isEmpty()) {
+            try {
+                statusEnum = Product.Status.valueOf(status);
+            } catch (IllegalArgumentException e) {
+                log.warn("잘못된 상태 값: {}", status);
+            }
+        }
+        
+        // 검색 조건에 따라 상품 조회
+        Page<Product> products = productAdminService.searchProducts(keyword, categoryEnum, statusEnum, pageable);
         
         model.addAttribute("products", products);
-        model.addAttribute("currentPage", page);
-        model.addAttribute("totalPages", products.getTotalPages());
         model.addAttribute("categories", Product.Category.values());
         
         return "admin/products/list";
@@ -239,6 +271,7 @@ public class AdminController {
 
     @GetMapping("/products/create")
     public String createProductForm(Model model) {
+        log.info("상품 등록 폼 요청");
         model.addAttribute("product", new Product());
         model.addAttribute("categories", Product.Category.values());
         return "admin/products/create";
@@ -247,70 +280,132 @@ public class AdminController {
     @PostMapping("/products/create")
     public String createProduct(@Valid @ModelAttribute Product product, 
                                BindingResult result, 
+                               Model model,
                                RedirectAttributes redirectAttributes) {
+        log.info("상품 등록 요청: {}", product.getName());
+        
         if (result.hasErrors()) {
+            log.warn("상품 등록 폼 유효성 검사 실패: {}", result.getAllErrors());
+            model.addAttribute("categories", Product.Category.values());
             return "admin/products/create";
         }
         
-        productService.save(product);
-        redirectAttributes.addFlashAttribute("successMessage", "상품이 성공적으로 생성되었습니다.");
-        return "redirect:/admin/products";
+        // 상품을 저장
+        try {
+            Product savedProduct = productAdminService.saveProduct(product);
+            log.info("상품 등록 완료: ID = {}", savedProduct.getId());
+            redirectAttributes.addFlashAttribute("successMessage", "상품이 성공적으로 등록되었습니다.");
+            return "redirect:/admin/products";
+        } catch (Exception e) {
+            log.error("상품 등록 중 오류 발생", e);
+            model.addAttribute("errorMessage", "상품 등록 중 오류가 발생했습니다: " + e.getMessage());
+            model.addAttribute("categories", Product.Category.values());
+            return "admin/products/create";
+        }
     }
 
     @GetMapping("/products/{id}/edit")
     public String editProductForm(@PathVariable Long id, Model model) {
-        Product product = productService.findById(id);
+        log.info("상품 수정 폼 요청: ID = {}", id);
         
-        model.addAttribute("product", product);
-        model.addAttribute("categories", Product.Category.values());
-        return "admin/products/edit";
+        try {
+            Product product = productService.findById(id);
+            model.addAttribute("product", product);
+            model.addAttribute("categories", Product.Category.values());
+            return "admin/products/edit";
+        } catch (Exception e) {
+            log.error("상품 정보 조회 중 오류 발생: ID = {}", id, e);
+            return "redirect:/admin/products";
+        }
     }
 
     @PostMapping("/products/{id}/edit")
     public String updateProduct(@PathVariable Long id, 
                                @Valid @ModelAttribute Product product, 
                                BindingResult result, 
+                               Model model,
                                RedirectAttributes redirectAttributes) {
+        log.info("상품 수정 요청: ID = {}", id);
+        
         if (result.hasErrors()) {
+            log.warn("상품 수정 폼 유효성 검사 실패: {}", result.getAllErrors());
+            model.addAttribute("categories", Product.Category.values());
             return "admin/products/edit";
         }
         
-        Product existingProduct = productService.findById(id);
+        try {
+            // ID가 일치하는지 확인
+            if (!id.equals(product.getId())) {
+                log.warn("상품 ID 불일치: URL ID = {}, 폼 ID = {}", id, product.getId());
+                redirectAttributes.addFlashAttribute("errorMessage", "상품 ID가 일치하지 않습니다.");
+                return "redirect:/admin/products";
+            }
+            
+            // 상품 업데이트
+            Product updatedProduct = productAdminService.saveProduct(product);
+            log.info("상품 수정 완료: ID = {}", updatedProduct.getId());
+            
+            redirectAttributes.addFlashAttribute("successMessage", "상품이 성공적으로 수정되었습니다.");
+            return "redirect:/admin/products";
+        } catch (Exception e) {
+            log.error("상품 수정 중 오류 발생", e);
+            model.addAttribute("errorMessage", "상품 수정 중 오류가 발생했습니다: " + e.getMessage());
+            model.addAttribute("categories", Product.Category.values());
+            return "admin/products/edit";
+        }
+    }
+
+    @PostMapping("/products/{id}/delete")
+    public String deleteProduct(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        log.info("상품 삭제 요청: ID = {}", id);
         
-        existingProduct.setName(product.getName());
-        existingProduct.setDescription(product.getDescription());
-        existingProduct.setPrice(product.getPrice());
-        existingProduct.setStock(product.getStock());
-        existingProduct.setImageUrl(product.getImageUrl());
-        existingProduct.setCategory(product.getCategory());
-        existingProduct.setStatus(product.getStatus());
-        
-        productService.save(existingProduct);
-        redirectAttributes.addFlashAttribute("successMessage", "상품이 성공적으로 업데이트되었습니다.");
+        try {
+            productAdminService.deleteProduct(id);
+            log.info("상품 삭제 완료: ID = {}", id);
+            redirectAttributes.addFlashAttribute("successMessage", "상품이 성공적으로 삭제되었습니다.");
+        } catch (Exception e) {
+            log.error("상품 삭제 중 오류 발생: ID = {}", id, e);
+            redirectAttributes.addFlashAttribute("errorMessage", "상품 삭제 중 오류가 발생했습니다: " + e.getMessage());
+        }
         
         return "redirect:/admin/products";
     }
 
-    // 주문 관리
+    @GetMapping("/products/statistics")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> getProductStatistics() {
+        log.info("상품 통계 정보 API 요청");
+        
+        try {
+            Map<String, Object> statistics = productAdminService.getProductStatistics();
+            return ResponseEntity.ok(statistics);
+        } catch (Exception e) {
+            log.error("상품 통계 정보 조회 중 오류 발생", e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    // 주문 관리 - 개선된 버전
     @GetMapping("/orders")
     public String listOrders(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String orderNumber,
             @RequestParam(required = false) Order.OrderStatus status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             Model model) {
         
-        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
-        Page<Order> orders;
+        log.info("주문 목록 페이지 요청 - 페이지: {}, 주문번호: {}, 상태: {}, 시작일: {}, 종료일: {}", 
+                page, orderNumber, status, startDate, endDate);
         
-        if (status != null) {
-            orders = orderService.findByStatus(status, pageable);
-        } else {
-            orders = orderService.findAll(pageable);
-        }
+        // 정렬 설정
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        
+        // 검색 조건에 따라 주문 조회
+        Page<Order> orders = orderAdminService.searchOrders(orderNumber, status, startDate, endDate, pageable);
         
         model.addAttribute("orders", orders);
-        model.addAttribute("currentPage", page);
-        model.addAttribute("totalPages", orders.getTotalPages());
         model.addAttribute("statuses", Order.OrderStatus.values());
         model.addAttribute("selectedStatus", status);
         
@@ -319,25 +414,143 @@ public class AdminController {
 
     @GetMapping("/orders/{id}")
     public String viewOrder(@PathVariable Long id, Model model) {
-        Order order = orderService.findByIdWithItems(id)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid order ID: " + id));
+        log.info("주문 상세 페이지 요청 - 주문 ID: {}", id);
         
-        model.addAttribute("order", order);
-        model.addAttribute("statuses", Order.OrderStatus.values());
-        return "admin/orders/view";
+        try {
+            Order order = orderAdminService.getOrderDetails(id);
+            model.addAttribute("order", order);
+            model.addAttribute("statuses", Order.OrderStatus.values());
+            return "admin/orders/view";
+        } catch (Exception e) {
+            log.error("주문 정보 조회 중 오류 발생: ID = {}", id, e);
+            return "redirect:/admin/orders";
+        }
     }
 
     @PostMapping("/orders/{id}/status")
     public String updateOrderStatus(
-            @PathVariable Long id, 
+            @PathVariable Long id,
             @RequestParam Order.OrderStatus status,
             RedirectAttributes redirectAttributes) {
         
-        orderService.updateOrderStatus(id, status);
-        redirectAttributes.addFlashAttribute("successMessage", "주문 상태가 성공적으로 업데이트되었습니다.");
+        log.info("주문 상태 업데이트 요청 - 주문 ID: {}, 새 상태: {}", id, status);
+        
+        try {
+            orderAdminService.updateOrderStatus(id, status, "관리자에 의한 상태 변경");
+            redirectAttributes.addFlashAttribute("successMessage", "주문 상태가 성공적으로 업데이트되었습니다.");
+        } catch (Exception e) {
+            log.error("주문 상태 업데이트 중 오류 발생: ID = {}, 상태 = {}", id, status, e);
+            redirectAttributes.addFlashAttribute("errorMessage", "주문 상태 업데이트 중 오류가 발생했습니다: " + e.getMessage());
+        }
+        
         return "redirect:/admin/orders/" + id;
     }
     
+    @PostMapping("/orders/{id}/shipping")
+    public String updateShippingInfo(
+            @PathVariable Long id,
+            @RequestParam String trackingNumber,
+            @RequestParam String carrier,
+            RedirectAttributes redirectAttributes) {
+        
+        log.info("배송 정보 업데이트 요청 - 주문 ID: {}, 운송장: {}, 배송사: {}", id, trackingNumber, carrier);
+        
+        try {
+            orderAdminService.updateShippingInfo(id, trackingNumber, carrier);
+            redirectAttributes.addFlashAttribute("successMessage", "배송 정보가 성공적으로 업데이트되었습니다.");
+        } catch (Exception e) {
+            log.error("배송 정보 업데이트 중 오류 발생: ID = {}", id, e);
+            redirectAttributes.addFlashAttribute("errorMessage", "배송 정보 업데이트 중 오류가 발생했습니다: " + e.getMessage());
+        }
+        
+        return "redirect:/admin/orders/" + id;
+    }
+    
+    @PostMapping("/orders/{id}/memo")
+    public String updateOrderMemo(
+            @PathVariable Long id,
+            @RequestParam String adminMemo,
+            RedirectAttributes redirectAttributes) {
+        
+        log.info("주문 메모 업데이트 요청 - 주문 ID: {}", id);
+        
+        try {
+            orderAdminService.updateAdminMemo(id, adminMemo);
+            redirectAttributes.addFlashAttribute("successMessage", "메모가 성공적으로 저장되었습니다.");
+        } catch (Exception e) {
+            log.error("주문 메모 업데이트 중 오류 발생: ID = {}", id, e);
+            redirectAttributes.addFlashAttribute("errorMessage", "메모 저장 중 오류가 발생했습니다: " + e.getMessage());
+        }
+        
+        return "redirect:/admin/orders/" + id;
+    }
+    
+    @PostMapping("/orders/{id}/cancel")
+    public String cancelOrder(
+            @PathVariable Long id,
+            @RequestParam String cancelReason,
+            RedirectAttributes redirectAttributes) {
+        
+        log.info("주문 취소 요청 - 주문 ID: {}, 취소 사유: {}", id, cancelReason);
+        
+        try {
+            orderAdminService.cancelOrder(id, cancelReason);
+            redirectAttributes.addFlashAttribute("successMessage", "주문이 성공적으로 취소되었습니다.");
+        } catch (Exception e) {
+            log.error("주문 취소 중 오류 발생: ID = {}", id, e);
+            redirectAttributes.addFlashAttribute("errorMessage", "주문 취소 중 오류가 발생했습니다: " + e.getMessage());
+        }
+        
+        return "redirect:/admin/orders/" + id;
+    }
+    
+    @GetMapping("/orders/statistics")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> getOrderStatistics() {
+        log.info("주문 통계 정보 API 요청");
+        
+        try {
+            Map<String, Object> statistics = orderAdminService.getOrderStatistics();
+            return ResponseEntity.ok(statistics);
+        } catch (Exception e) {
+            log.error("주문 통계 정보 조회 중 오류 발생", e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+    
+    @GetMapping("/orders/export")
+    public void exportOrders(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) Order.OrderStatus status,
+            HttpServletResponse response) throws Exception {
+        
+        log.info("주문 내보내기 요청 - 시작일: {}, 종료일: {}, 상태: {}", startDate, endDate, status);
+        
+        response.setContentType("application/vnd.ms-excel");
+        response.setCharacterEncoding("UTF-8");
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=orders.xlsx");
+        
+        // 주문 내보내기 구현은 실제 서비스 클래스에서 처리 (현재는 미구현)
+        // orderExportService.exportOrdersToExcel(startDate, endDate, status, response.getOutputStream());
+        
+        response.getOutputStream().flush();
+    }
+
+    @GetMapping("/orders/invoice/{id}")
+    public String viewOrderInvoice(@PathVariable Long id, Model model) {
+        log.info("주문서 인쇄 페이지 요청 - 주문 ID: {}", id);
+        
+        try {
+            Order order = orderAdminService.getOrderDetails(id);
+            model.addAttribute("order", order);
+            return "admin/orders/invoice";
+        } catch (Exception e) {
+            log.error("주문 정보 조회 중 오류 발생: ID = {}", id, e);
+            return "redirect:/admin/orders";
+        }
+    }
+
     /**
      * 상세 통계 화면
      */
@@ -347,30 +560,52 @@ public class AdminController {
         
         try {
             // 사용자 통계
-            Map<String, Object> userStats = new HashMap<>();
-            userStats.put("totalUsers", userService.countUsers());
-            userStats.put("activeUsers", userService.countUsersByStatus(com.jacob.testapp.user.entity.User.Status.ACTIVE));
-            userStats.put("lockedUsers", userService.countUsersByStatus(com.jacob.testapp.user.entity.User.Status.LOCKED));
-            userStats.put("newUsers", 0); // 최근 30일 신규 가입자 (실제 구현 필요)
-            userStats.put("monthlyRegistrations", "{}"); // 월별 가입자 데이터 (실제 구현 필요)
+            Map<String, Object> userStats = statisticsService.getUserStatistics();
             model.addAttribute("userStats", userStats);
             
             // 상품 통계
-            Map<String, Object> productStats = new HashMap<>();
-            productStats.put("totalProducts", productService.countProducts());
-            productStats.put("activeProducts", productService.countActiveProducts());
-            productStats.put("inactiveProducts", 0); // 비활성 상품 (실제 구현 필요)
-            productStats.put("outOfStockProducts", 0); // 재고 없는 상품 (실제 구현 필요)
-            productStats.put("productsByCategory", "{}"); // 카테고리별 상품 수 (실제 구현 필요)
-            productStats.put("productsByPriceRange", "{}"); // 가격대별 상품 수 (실제 구현 필요)
+            Map<String, Object> productStats = statisticsService.getProductStatistics();
             model.addAttribute("productStats", productStats);
             
-            // 주문 통계 (임시 더미 데이터, 실제로는 OrderService에서 가져와야 함)
-            Map<String, Object> orderStats = new HashMap<>();
-            orderStats.put("totalOrders", 0);
-            orderStats.put("ordersByStatus", "{}");
-            orderStats.put("totalSales", "0");
-            orderStats.put("monthlySales", "{}");
+            // 주문 통계
+            Map<String, Object> orderStats = statisticsService.getOrderStatistics();
+            
+            // 주문 상태별 통계 추가 처리
+            if (orderStats.containsKey("ordersByStatus")) {
+                Map<String, Long> ordersByStatus = (Map<String, Long>) orderStats.get("ordersByStatus");
+                long completedOrders = ordersByStatus.getOrDefault("COMPLETED", 0L);
+                long pendingOrders = ordersByStatus.getOrDefault("PENDING", 0L) + 
+                                    ordersByStatus.getOrDefault("PAID", 0L) + 
+                                    ordersByStatus.getOrDefault("SHIPPING", 0L);
+                
+                orderStats.put("completedOrders", completedOrders);
+                orderStats.put("pendingOrders", pendingOrders);
+            }
+            
+            // 매출 포맷팅
+            if (orderStats.containsKey("totalSales")) {
+                Double totalSales = (Double) orderStats.get("totalSales");
+                NumberFormat formatter = NumberFormat.getCurrencyInstance(Locale.KOREA);
+                orderStats.put("totalSales", formatter.format(totalSales));
+            }
+            
+            // Chart.js에서 사용할 JSON 문자열로 변환
+            try {
+                if (orderStats.containsKey("monthlyOrders")) {
+                    orderStats.put("monthlyOrders", new ObjectMapper().writeValueAsString(orderStats.get("monthlyOrders")));
+                }
+                
+                if (orderStats.containsKey("monthlySales")) {
+                    orderStats.put("monthlySales", new ObjectMapper().writeValueAsString(orderStats.get("monthlySales")));
+                }
+                
+                if (userStats.containsKey("monthlyRegistrations")) {
+                    userStats.put("monthlyRegistrations", new ObjectMapper().writeValueAsString(userStats.get("monthlyRegistrations")));
+                }
+            } catch (Exception e) {
+                log.warn("통계 데이터 JSON 변환 중 오류", e);
+            }
+            
             model.addAttribute("orderStats", orderStats);
             
             return "admin/details";

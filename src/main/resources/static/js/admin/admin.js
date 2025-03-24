@@ -251,4 +251,16 @@ function createPagination(currentPage, totalPages) {
     pagination.appendChild(nextPageItem);
     
     return pagination;
+}
+
+// 상품 삭제 확인 함수
+function confirmDeleteProduct(button) {
+    const productId = button.getAttribute('data-product-id');
+    const productName = button.getAttribute('data-product-name');
+    
+    document.getElementById('deleteProductMessage').textContent = '상품 "' + productName + '"을(를) 정말 삭제하시겠습니까?';
+    document.getElementById('deleteProductForm').action = '/admin/products/' + productId + '/delete';
+    
+    var deleteModal = new bootstrap.Modal(document.getElementById('deleteProductModal'));
+    deleteModal.show();
 } 

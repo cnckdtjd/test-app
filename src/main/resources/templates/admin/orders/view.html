@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{admin/layout}">
+<head>
+</head>
+<body>
+    <section layout:fragment="content">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>주문 상세 정보</h2>
+            <div class="d-flex">
+                <a th:href="@{/admin/orders}" class="btn btn-secondary me-2">
+                    <i class="bi bi-arrow-left"></i> 목록으로
+                </a>
+                <a th:href="@{'/admin/orders/invoice/' + ${order.id}}" class="btn btn-success" target="_blank">
+                    <i class="bi bi-printer"></i> 인쇄
+                </a>
+            </div>
+        </div>
+
+        <!-- 알림 메시지 -->
+        <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+            <span th:text="${successMessage}">성공 메시지</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <span th:text="${errorMessage}">오류 메시지</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+
+        <!-- 주문 요약 정보 -->
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                        <h6 class="m-0 font-weight-bold text-primary">
+                            주문 정보 <span class="text-muted" th:text="'(주문번호: ' + ${order.orderNumber} + ')'"></span>
+                        </h6>
+                        <div>
+                            <span th:class="${'badge text-bg-' + 
+                                            (order.status.name() == 'PENDING' ? 'warning' : 
+                                             order.status.name() == 'PAID' ? 'info' : 
+                                             order.status.name() == 'SHIPPING' ? 'primary' : 
+                                             order.status.name() == 'COMPLETED' ? 'success' : 
+                                             order.status.name() == 'CANCELLED' ? 'danger' : 'secondary')}" 
+                                  th:text="${order.status.displayName}">
+                                결제대기
+                            </span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="fw-bold">주문일시</label>
+                                    <p th:text="${#temporals.format(order.createdAt, 'yyyy년 MM월 dd일 HH:mm:ss')}">2023년 01월 01일 12:00:00</p>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="fw-bold">주문자</label>
+                                    <p>
+                                        <span th:if="${order.user}" th:text="${order.user.name + ' (' + order.user.username + ')'}">홍길동 (user@example.com)</span>
+                                        <span th:unless="${order.user}">비회원</span>
+                                    </p>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="fw-bold">결제방법</label>
+                                    <p th:text="${order.paymentMethod}">신용카드</p>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="fw-bold">마지막 업데이트</label>
+                                    <p th:text="${#temporals.format(order.updatedAt, 'yyyy년 MM월 dd일 HH:mm:ss')}">2023년 01월 01일 12:00:00</p>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="fw-bold">연락처</label>
+                                    <p th:text="${order.phoneNumber}">010-1234-5678</p>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="fw-bold">이메일</label>
+                                    <p th:text="${order.email}">email@example.com</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">주문 상태 관리</h6>
+                    </div>
+                    <div class="card-body">
+                        <form th:action="@{'/admin/orders/' + ${order.id} + '/status'}" method="post">
+                            <div class="mb-3">
+                                <label for="statusSelect" class="form-label">주문 상태 변경</label>
+                                <select class="form-select" id="statusSelect" name="status">
+                                    <option th:each="status : ${statuses}" 
+                                            th:value="${status}" 
+                                            th:text="${status.displayName}" 
+                                            th:selected="${order.status == status}">
+                                        주문상태
+                                    </option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">상태 변경</button>
+                        </form>
+                        
+                        <hr>
+                        
+                        <h6 class="fw-bold">배송 정보 추가</h6>
+                        <form th:action="@{'/admin/orders/' + ${order.id} + '/shipping'}" method="post">
+                            <div class="mb-3">
+                                <label for="trackingNumber" class="form-label">운송장 번호</label>
+                                <input type="text" class="form-control" id="trackingNumber" name="trackingNumber" 
+                                       th:value="${order.trackingNumber}">
+                            </div>
+                            <div class="mb-3">
+                                <label for="carrier" class="form-label">배송업체</label>
+                                <select class="form-select" id="carrier" name="carrier">
+                                    <option value="CJ대한통운" th:selected="${order.carrier == 'CJ대한통운'}">CJ대한통운</option>
+                                    <option value="롯데택배" th:selected="${order.carrier == '롯데택배'}">롯데택배</option>
+                                    <option value="우체국택배" th:selected="${order.carrier == '우체국택배'}">우체국택배</option>
+                                    <option value="한진택배" th:selected="${order.carrier == '한진택배'}">한진택배</option>
+                                    <option value="로젠택배" th:selected="${order.carrier == '로젠택배'}">로젠택배</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">배송정보 저장</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 주문 상품 목록 -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">주문 상품 목록</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="orderItemsTable" width="100%" cellspacing="0">
+                        <thead>
+                            <tr>
+                                <th>상품 ID</th>
+                                <th>이미지</th>
+                                <th>상품명</th>
+                                <th>옵션</th>
+                                <th>단가</th>
+                                <th>수량</th>
+                                <th>소계</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="item : ${order.items}">
+                                <td th:text="${item.product.id}">1</td>
+                                <td class="text-center">
+                                    <img th:if="${item.product.imageUrl}" th:src="${item.product.imageUrl}" alt="상품 이미지" class="img-thumbnail" style="width: 50px; height: 50px;">
+                                    <span th:unless="${item.product.imageUrl}" class="text-muted">이미지 없음</span>
+                                </td>
+                                <td>
+                                    <a th:href="@{'/admin/products/' + ${item.product.id} + '/edit'}" th:text="${item.product.name}">상품명</a>
+                                </td>
+                                <td th:text="${item.productOption != null ? item.productOption : '옵션 없음'}">옵션 정보</td>
+                                <td th:text="${#numbers.formatCurrency(item.price)}">10,000원</td>
+                                <td th:text="${item.quantity}">2</td>
+                                <td th:text="${#numbers.formatCurrency(item.price * item.quantity)}">20,000원</td>
+                            </tr>
+                            <tr th:if="${order.items.empty}">
+                                <td colspan="7" class="text-center py-4">
+                                    주문 상품이 없습니다.
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <td colspan="5"></td>
+                                <td class="fw-bold">합계</td>
+                                <td class="fw-bold" th:text="${#numbers.formatCurrency(order.subtotalAmount)}">100,000원</td>
+                            </tr>
+                            <tr>
+                                <td colspan="5"></td>
+                                <td class="fw-bold">배송비</td>
+                                <td class="fw-bold" th:text="${#numbers.formatCurrency(order.shippingAmount)}">3,000원</td>
+                            </tr>
+                            <tr>
+                                <td colspan="5"></td>
+                                <td class="fw-bold">할인</td>
+                                <td class="fw-bold text-danger" th:text="${'-' + #numbers.formatCurrency(order.discountAmount)}">-5,000원</td>
+                            </tr>
+                            <tr>
+                                <td colspan="5"></td>
+                                <td class="fw-bold">총액</td>
+                                <td class="fw-bold text-primary" th:text="${#numbers.formatCurrency(order.totalAmount)}">98,000원</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- 배송 정보 -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">배송 정보</h6>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="fw-bold">수령인</label>
+                            <p th:text="${order.receiverName}">홍길동</p>
+                        </div>
+                        <div class="mb-3">
+                            <label class="fw-bold">연락처</label>
+                            <p th:text="${order.receiverPhone}">010-1234-5678</p>
+                        </div>
+                        <div class="mb-3">
+                            <label class="fw-bold">주소</label>
+                            <p>
+                                <span th:text="${order.receiverZipcode + ' ' + order.receiverAddress1}">12345 서울시 강남구 삼성동 123-45</span><br>
+                                <span th:text="${order.receiverAddress2}">101동 1001호</span>
+                            </p>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="fw-bold">배송 요청사항</label>
+                            <p th:text="${order.deliveryMessage != null and !order.deliveryMessage.isEmpty() ? order.deliveryMessage : '없음'}">부재시 경비실에 맡겨주세요.</p>
+                        </div>
+                        <div class="mb-3" th:if="${order.trackingNumber}">
+                            <label class="fw-bold">배송 추적</label>
+                            <p>
+                                <span th:text="${order.carrier + ' ' + order.trackingNumber}">CJ대한통운 1234567890</span>
+                                <a th:href="${'#'}" target="_blank" class="btn btn-sm btn-outline-primary ms-2">배송 조회</a>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 관리자 메모 -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">관리자 메모</h6>
+            </div>
+            <div class="card-body">
+                <form th:action="@{'/admin/orders/' + ${order.id} + '/memo'}" method="post">
+                    <div class="mb-3">
+                        <textarea class="form-control" id="adminMemo" name="adminMemo" rows="3" 
+                                  th:text="${order.adminMemo}"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">메모 저장</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 주문 이력 -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">주문 이력</h6>
+            </div>
+            <div class="card-body">
+                <ul class="timeline">
+                    <li class="timeline-item mb-5" th:each="history : ${order.history}">
+                        <span class="timeline-point"></span>
+                        <div class="timeline-content">
+                            <div class="d-flex justify-content-between">
+                                <h6 class="fw-bold" th:text="${history.statusText}">주문 생성</h6>
+                                <p class="text-muted mb-2" th:text="${#temporals.format(history.createdAt, 'yyyy-MM-dd HH:mm:ss')}">2023-01-01 12:00:00</p>
+                            </div>
+                            <p th:if="${history.memo}" th:text="${history.memo}">사용자가 주문을 생성했습니다.</p>
+                        </div>
+                    </li>
+                    <li class="timeline-item" th:if="${order.history.empty}">
+                        <span class="timeline-point"></span>
+                        <div class="timeline-content">
+                            <h6 class="fw-bold">주문 생성</h6>
+                            <p class="text-muted mb-2" th:text="${#temporals.format(order.createdAt, 'yyyy-MM-dd HH:mm:ss')}">2023-01-01 12:00:00</p>
+                            <p>사용자가 주문을 생성했습니다.</p>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 주문 취소 -->
+        <div class="card shadow mb-4 border-danger" th:if="${order.status.name() != 'CANCELLED' && order.status.name() != 'COMPLETED'}">
+            <div class="card-header py-3 bg-danger text-white">
+                <h6 class="m-0 font-weight-bold">주문 취소</h6>
+            </div>
+            <div class="card-body">
+                <p class="mb-3">주문을 취소하면 복원할 수 없습니다. 신중하게 진행해주세요.</p>
+                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#cancelOrderModal">
+                    <i class="bi bi-x-circle"></i> 주문 취소
+                </button>
+            </div>
+        </div>
+        
+        <!-- 주문 취소 모달 -->
+        <div class="modal fade" id="cancelOrderModal" tabindex="-1" aria-labelledby="cancelOrderModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="cancelOrderModalLabel">주문 취소 확인</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form th:action="@{'/admin/orders/' + ${order.id} + '/cancel'}" method="post">
+                        <div class="modal-body">
+                            <p>주문 <strong th:text="${order.orderNumber}">ORD202403240001</strong>번을 취소하시겠습니까?</p>
+                            <p class="text-danger">이 작업은 취소할 수 없습니다.</p>
+                            <div class="mb-3">
+                                <label for="cancelReason" class="form-label">취소 사유</label>
+                                <textarea class="form-control" id="cancelReason" name="cancelReason" rows="3" required></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                            <button type="submit" class="btn btn-danger">주문 취소</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 페이지별 스크립트 -->
+    <th:block layout:fragment="scripts">
+        <script th:src="@{/js/admin/order.js}"></script>
+    </th:block>
+    
+    <style layout:fragment="styles">
+        /* 타임라인 스타일 */
+        .timeline {
+            position: relative;
+            list-style: none;
+            padding-left: 1.5rem;
+        }
+        
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0.25rem;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background-color: #e9ecef;
+        }
+        
+        .timeline-item {
+            position: relative;
+            padding-left: 1.5rem;
+            padding-bottom: 1.5rem;
+        }
+        
+        .timeline-point {
+            position: absolute;
+            left: -1.5rem;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #4e73df;
+            border: 2px solid #fff;
+            top: 0.25rem;
+        }
+        
+        .timeline-content {
+            padding: 0.75rem;
+            background-color: #f8f9fc;
+            border-radius: 0.35rem;
+        }
+    </style>
+</body>
+</html> 

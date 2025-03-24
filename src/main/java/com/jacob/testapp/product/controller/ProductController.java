@@ -66,7 +66,7 @@ public class ProductController {
         if (principal != null) {
             User user = userService.findByUsername(principal.getName())
                     .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
-            Optional<Cart> cart = cartService.findByUser(user);
+            Optional<Cart> cart = cartService.findByUserWithItems(user.getId());
             if (cart.isPresent()) {
                 model.addAttribute("cartItemCount", cart.get().getCartItems().size());
             } else {
@@ -96,7 +96,7 @@ public class ProductController {
         if (principal != null) {
             User user = userService.findByUsername(principal.getName())
                     .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
-            Optional<Cart> cart = cartService.findByUser(user);
+            Optional<Cart> cart = cartService.findByUserWithItems(user.getId());
             if (cart.isPresent()) {
                 model.addAttribute("cartItemCount", cart.get().getCartItems().size());
             } else {

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{admin/layout}">
+<head>
+</head>
+<body>
+    <section layout:fragment="content">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>상품 등록</h2>
+            <a th:href="@{/admin/products}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> 상품 목록으로
+            </a>
+        </div>
+        
+        <!-- 상품 생성 폼 -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">상품 정보 입력</h6>
+            </div>
+            <div class="card-body">
+                <form th:action="@{/admin/products/create}" th:object="${product}" method="post" class="row g-3">
+                    <!-- 상품명 -->
+                    <div class="col-md-8">
+                        <label for="name" class="form-label">상품명 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="name" th:field="*{name}" required>
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('name')}" th:errors="*{name}">
+                            상품명을 입력해주세요.
+                        </div>
+                    </div>
+                    
+                    <!-- 카테고리 -->
+                    <div class="col-md-4">
+                        <label for="category" class="form-label">카테고리 <span class="text-danger">*</span></label>
+                        <select class="form-select" id="category" th:field="*{category}" required>
+                            <option value="">카테고리 선택</option>
+                            <option th:each="cat : ${categories}" th:value="${cat}" th:text="${cat}">카테고리</option>
+                        </select>
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('category')}" th:errors="*{category}">
+                            카테고리를 선택해주세요.
+                        </div>
+                    </div>
+                    
+                    <!-- 가격 -->
+                    <div class="col-md-4">
+                        <label for="price" class="form-label">가격 (원) <span class="text-danger">*</span></label>
+                        <div class="input-group">
+                            <span class="input-group-text">₩</span>
+                            <input type="number" class="form-control" id="price" th:field="*{price}" required min="0" step="100">
+                        </div>
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('price')}" th:errors="*{price}">
+                            가격을 입력해주세요.
+                        </div>
+                    </div>
+                    
+                    <!-- 재고 -->
+                    <div class="col-md-4">
+                        <label for="stock" class="form-label">재고 <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" id="stock" th:field="*{stock}" required min="0">
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('stock')}" th:errors="*{stock}">
+                            재고를 입력해주세요.
+                        </div>
+                    </div>
+                    
+                    <!-- 상태 -->
+                    <div class="col-md-4">
+                        <label for="status" class="form-label">상태 <span class="text-danger">*</span></label>
+                        <select class="form-select" id="status" th:field="*{status}" required>
+                            <option th:value="ACTIVE">활성</option>
+                            <option th:value="INACTIVE">비활성</option>
+                        </select>
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('status')}" th:errors="*{status}">
+                            상태를 선택해주세요.
+                        </div>
+                    </div>
+                    
+                    <!-- 이미지 URL -->
+                    <div class="col-md-12">
+                        <label for="imageUrl" class="form-label">이미지 URL</label>
+                        <input type="url" class="form-control" id="imageUrl" th:field="*{imageUrl}" placeholder="https://example.com/image.jpg">
+                        <div class="form-text">상품 이미지의 URL을 입력하세요. (선택사항)</div>
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('imageUrl')}" th:errors="*{imageUrl}">
+                            올바른 URL 형식이 아닙니다.
+                        </div>
+                    </div>
+                    
+                    <!-- 상품 설명 -->
+                    <div class="col-md-12">
+                        <label for="description" class="form-label">상품 설명</label>
+                        <textarea class="form-control" id="description" th:field="*{description}" rows="5" placeholder="상품 상세 설명을 입력하세요."></textarea>
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('description')}" th:errors="*{description}">
+                            설명은 1000자를 초과할 수 없습니다.
+                        </div>
+                    </div>
+                    
+                    <!-- 비고 -->
+                    <div class="col-md-12">
+                        <label for="remarks" class="form-label">비고</label>
+                        <input type="text" class="form-control" id="remarks" th:field="*{remarks}" placeholder="관리용 메모를 입력하세요.">
+                        <div class="invalid-feedback" th:if="${#fields.hasErrors('remarks')}" th:errors="*{remarks}">
+                            비고는 255자를 초과할 수 없습니다.
+                        </div>
+                    </div>
+                    
+                    <!-- 이미지 미리보기 -->
+                    <div class="col-md-12 mt-3">
+                        <div class="card">
+                            <div class="card-header">
+                                이미지 미리보기
+                            </div>
+                            <div class="card-body text-center">
+                                <img id="imagePreview" src="" alt="이미지 미리보기" class="img-thumbnail mx-auto" style="max-width: 300px; max-height: 300px; display: none;">
+                                <div id="noImageMessage" class="text-muted p-5">이미지 URL을 입력하면 미리보기가 표시됩니다.</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 제출 버튼 -->
+                    <div class="col-md-12 mt-4">
+                        <hr>
+                        <div class="d-flex justify-content-between">
+                            <a th:href="@{/admin/products}" class="btn btn-secondary">취소</a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-save"></i> 상품 등록
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <!-- 페이지별 스크립트 -->
+    <th:block layout:fragment="scripts">
+        <script th:inline="javascript">
+            // 이미지 URL 입력 시 미리보기 표시
+            document.getElementById('imageUrl').addEventListener('input', function() {
+                const imageUrl = this.value.trim();
+                const imagePreview = document.getElementById('imagePreview');
+                const noImageMessage = document.getElementById('noImageMessage');
+                
+                if (imageUrl) {
+                    imagePreview.src = imageUrl;
+                    imagePreview.style.display = 'block';
+                    noImageMessage.style.display = 'none';
+                    
+                    // 이미지 로드 실패 시
+                    imagePreview.onerror = function() {
+                        imagePreview.style.display = 'none';
+                        noImageMessage.style.display = 'block';
+                        noImageMessage.textContent = '이미지를 불러올 수 없습니다. URL을 확인해주세요.';
+                    };
+                } else {
+                    imagePreview.style.display = 'none';
+                    noImageMessage.style.display = 'block';
+                    noImageMessage.textContent = '이미지 URL을 입력하면 미리보기가 표시됩니다.';
+                }
+            });
+            
+            // 폼 유효성 검사 활성화
+            (function() {
+                'use strict';
+                
+                // Fetch all the forms we want to apply custom Bootstrap validation styles to
+                const forms = document.querySelectorAll('.needs-validation');
+                
+                // Loop over them and prevent submission
+                Array.from(forms).forEach(form => {
+                    form.addEventListener('submit', event => {
+                        if (!form.checkValidity()) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                        }
+                        
+                        form.classList.add('was-validated');
+                    }, false);
+                });
+            })();
+        </script>
+    </th:block>
+</body>
+</html> 

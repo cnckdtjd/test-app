@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>주문서</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            body {
+                font-size: 12px;
+            }
+            .container {
+                width: 100%;
+                max-width: 100%;
+                padding: 0;
+                margin: 0;
+            }
+            .table {
+                font-size: 11px;
+            }
+            .header-logo {
+                max-width: 120px;
+            }
+        }
+        .header-logo {
+            max-width: 180px;
+        }
+        .border-bottom-dash {
+            border-bottom: 1px dashed #dee2e6;
+        }
+        .invoice-section {
+            margin-bottom: 1.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container my-5">
+        <!-- 인쇄 버튼 -->
+        <div class="text-end mb-4 no-print">
+            <button onclick="window.print();" class="btn btn-primary">
+                <i class="bi bi-printer"></i> 인쇄
+            </button>
+            <button onclick="window.close();" class="btn btn-secondary ms-2">
+                <i class="bi bi-x-circle"></i> 닫기
+            </button>
+        </div>
+        
+        <!-- 주문서 헤더 -->
+        <div class="row mb-4 align-items-center">
+            <div class="col-6">
+                <img src="/images/logo.png" alt="로고" class="header-logo">
+            </div>
+            <div class="col-6 text-end">
+                <h2 class="mb-0">주문서</h2>
+                <p class="text-muted mb-0" th:text="${order.orderNumber}">ORD202403240001</p>
+            </div>
+        </div>
+        
+        <hr class="border-bottom-dash">
+        
+        <!-- 주문 정보 -->
+        <div class="row invoice-section">
+            <div class="col-6">
+                <h5 class="mb-3">주문 정보</h5>
+                <table class="table table-sm">
+                    <tbody>
+                        <tr>
+                            <th style="width: 40%">주문 번호</th>
+                            <td th:text="${order.orderNumber}">ORD202403240001</td>
+                        </tr>
+                        <tr>
+                            <th>주문 일시</th>
+                            <td th:text="${#temporals.format(order.createdAt, 'yyyy년 MM월 dd일 HH:mm')}">2023년 01월 01일 12:00</td>
+                        </tr>
+                        <tr>
+                            <th>주문 상태</th>
+                            <td th:text="${order.status.displayName}">결제완료</td>
+                        </tr>
+                        <tr>
+                            <th>결제 방법</th>
+                            <td th:text="${order.paymentMethod}">신용카드</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="col-6">
+                <h5 class="mb-3">고객 정보</h5>
+                <table class="table table-sm">
+                    <tbody>
+                        <tr>
+                            <th style="width: 40%">주문자명</th>
+                            <td th:text="${order.user != null ? order.user.name : '비회원'}">홍길동</td>
+                        </tr>
+                        <tr>
+                            <th>이메일</th>
+                            <td th:text="${order.email}">email@example.com</td>
+                        </tr>
+                        <tr>
+                            <th>연락처</th>
+                            <td th:text="${order.phoneNumber}">010-1234-5678</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- 배송 정보 -->
+        <div class="invoice-section">
+            <h5 class="mb-3">배송 정보</h5>
+            <table class="table table-sm">
+                <tbody>
+                    <tr>
+                        <th style="width: 20%">수령인</th>
+                        <td th:text="${order.receiverName}">홍길동</td>
+                    </tr>
+                    <tr>
+                        <th>연락처</th>
+                        <td th:text="${order.receiverPhone}">010-1234-5678</td>
+                    </tr>
+                    <tr>
+                        <th>주소</th>
+                        <td>
+                            <span th:text="${order.receiverZipcode + ' ' + order.receiverAddress1}">12345 서울시 강남구 삼성동 123-45</span>
+                            <span th:text="${order.receiverAddress2}">101동 1001호</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>배송 요청사항</th>
+                        <td th:text="${order.deliveryMessage != null && !order.deliveryMessage.isEmpty() ? order.deliveryMessage : '없음'}">부재시 경비실에 맡겨주세요.</td>
+                    </tr>
+                    <tr th:if="${order.trackingNumber}">
+                        <th>운송장 정보</th>
+                        <td th:text="${order.carrier + ' ' + order.trackingNumber}">CJ대한통운 1234567890</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- 주문 상품 목록 -->
+        <div class="invoice-section">
+            <h5 class="mb-3">주문 상품</h5>
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>상품명</th>
+                        <th>옵션</th>
+                        <th class="text-end">단가</th>
+                        <th class="text-center">수량</th>
+                        <th class="text-end">소계</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:each="item : ${order.items}">
+                        <td th:text="${item.product.name}">상품명</td>
+                        <td th:text="${item.productOption != null ? item.productOption : '옵션 없음'}">옵션 정보</td>
+                        <td class="text-end" th:text="${#numbers.formatCurrency(item.price)}">10,000원</td>
+                        <td class="text-center" th:text="${item.quantity}">2</td>
+                        <td class="text-end" th:text="${#numbers.formatCurrency(item.price * item.quantity)}">20,000원</td>
+                    </tr>
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3"></td>
+                        <td class="text-end fw-bold">상품 합계:</td>
+                        <td class="text-end fw-bold" th:text="${#numbers.formatCurrency(order.subtotalAmount)}">100,000원</td>
+                    </tr>
+                    <tr>
+                        <td colspan="3"></td>
+                        <td class="text-end fw-bold">배송비:</td>
+                        <td class="text-end fw-bold" th:text="${#numbers.formatCurrency(order.shippingAmount)}">3,000원</td>
+                    </tr>
+                    <tr>
+                        <td colspan="3"></td>
+                        <td class="text-end fw-bold">할인:</td>
+                        <td class="text-end fw-bold text-danger" th:text="${'-' + #numbers.formatCurrency(order.discountAmount)}">-5,000원</td>
+                    </tr>
+                    <tr>
+                        <td colspan="3"></td>
+                        <td class="text-end fw-bold">총 결제금액:</td>
+                        <td class="text-end fw-bold text-primary" th:text="${#numbers.formatCurrency(order.totalAmount)}">98,000원</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        
+        <hr class="border-bottom-dash">
+        
+        <!-- 주문서 푸터 -->
+        <div class="invoice-section small text-center">
+            <p class="mb-1">감사합니다. 문의사항은 고객센터로 연락주세요.</p>
+            <p class="mb-1">고객센터: 1234-5678 | 이메일: support@example.com</p>
+            <p class="mb-0">© 2024 Jacob Shop. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html> 

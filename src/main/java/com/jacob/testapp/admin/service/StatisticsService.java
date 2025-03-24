@@ -11,9 +11,12 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -36,6 +39,7 @@ public class StatisticsService {
     /**
      * 사용자 관련 통계 정보 조회
      */
+    @Transactional(readOnly = true)
     public Map<String, Object> getUserStatistics() {
         log.debug("사용자 통계 정보 조회");
         Map<String, Object> stats = new HashMap<>();
@@ -72,6 +76,20 @@ public class StatisticsService {
             });
             
             stats.put("monthlyRegistrations", monthlyStats);
+            
+            // 상세 분석: 최근 7일간 일별 가입자 추이
+            Map<String, Long> dailyStats = new HashMap<>();
+            DateTimeFormatter dailyFormatter = DateTimeFormatter.ofPattern("MM-dd");
+            LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+            
+            users.stream()
+                .filter(user -> user.getCreatedAt() != null && user.getCreatedAt().isAfter(sevenDaysAgo))
+                .forEach(user -> {
+                    String day = user.getCreatedAt().format(dailyFormatter);
+                    dailyStats.put(day, dailyStats.getOrDefault(day, 0L) + 1);
+                });
+            
+            stats.put("dailyRegistrations", dailyStats);
             
             return stats;
         } catch (Exception e) {
@@ -163,7 +181,7 @@ public class StatisticsService {
                 if (order.getCreatedAt() != null && order.getTotalAmount() != null) {
                     String month = order.getCreatedAt().format(formatter);
                     BigDecimal currentAmount = monthlySales.getOrDefault(month, BigDecimal.ZERO);
-                    monthlySales.put(month, currentAmount.add(order.getTotalAmount()));
+                    monthlySales.put(month, currentAmount.add(BigDecimal.valueOf(order.getTotalAmount())));
                 }
             });
             
@@ -173,6 +191,80 @@ public class StatisticsService {
         } catch (Exception e) {
             log.error("주문 통계 조회 중 오류 발생: ", e);
             stats.put("error", "통계 정보를 로드하는 중 오류가 발생했습니다");
+            return stats;
+        }
+    }
+
+    /**
+     * 주문 상세 통계 정보 조회
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Object> getDetailedOrderStatistics() {
+        log.debug("주문 상세 통계 정보 조회");
+        Map<String, Object> stats = new HashMap<>();
+        
+        try {
+            Map<String, Object> baseStats = getOrderStatistics();
+            stats.putAll(baseStats);
+            
+            List<Order> orders = orderRepository.findAll();
+            
+            // 최근 7일간 일별 주문 수
+            Map<String, Long> dailyOrderStats = new HashMap<>();
+            DateTimeFormatter dailyFormatter = DateTimeFormatter.ofPattern("MM-dd");
+            LocalDateTime sevenDaysAgo = LocalDateTime.now().minusDays(7);
+            
+            orders.stream()
+                .filter(order -> order.getCreatedAt() != null && order.getCreatedAt().isAfter(sevenDaysAgo))
+                .forEach(order -> {
+                    String day = order.getCreatedAt().format(dailyFormatter);
+                    dailyOrderStats.put(day, dailyOrderStats.getOrDefault(day, 0L) + 1);
+                });
+            
+            stats.put("dailyOrders", dailyOrderStats);
+            
+            // 평균 주문 금액
+            double avgOrderAmount = orders.stream()
+                .filter(order -> order.getTotalAmount() != null)
+                .mapToDouble(Order::getTotalAmount)
+                .average()
+                .orElse(0);
+            stats.put("averageOrderAmount", avgOrderAmount);
+            
+            // 최대 주문 금액
+            double maxOrderAmount = orders.stream()
+                .filter(order -> order.getTotalAmount() != null)
+                .mapToDouble(Order::getTotalAmount)
+                .max()
+                .orElse(0);
+            stats.put("maxOrderAmount", maxOrderAmount);
+            
+            // 구매 횟수별 사용자 수
+            Map<Long, Long> userOrderCounts = orders.stream()
+                .filter(order -> order.getUser() != null)
+                .collect(Collectors.groupingBy(
+                    order -> order.getUser().getId(),
+                    Collectors.counting()
+                ));
+            
+            // 1회, 2-3회, 4-5회, 6회 이상 주문 사용자 분포
+            long oneTimeUsers = userOrderCounts.values().stream().filter(count -> count == 1).count();
+            long twoToThreeTimeUsers = userOrderCounts.values().stream().filter(count -> count >= 2 && count <= 3).count();
+            long fourToFiveTimeUsers = userOrderCounts.values().stream().filter(count -> count >= 4 && count <= 5).count();
+            long moreThanFiveTimeUsers = userOrderCounts.values().stream().filter(count -> count > 5).count();
+            
+            Map<String, Long> orderFrequencyStats = new HashMap<>();
+            orderFrequencyStats.put("1회", oneTimeUsers);
+            orderFrequencyStats.put("2-3회", twoToThreeTimeUsers);
+            orderFrequencyStats.put("4-5회", fourToFiveTimeUsers);
+            orderFrequencyStats.put("6회 이상", moreThanFiveTimeUsers);
+            
+            stats.put("orderFrequency", orderFrequencyStats);
+            
+            return stats;
+        } catch (Exception e) {
+            log.error("주문 상세 통계 조회 중 오류 발생: ", e);
+            stats.put("error", "상세 통계 정보를 로드하는 중 오류가 발생했습니다");
             return stats;
         }
     }
