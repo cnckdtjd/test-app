@@ -10,12 +10,21 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * 테스트 데이터 생성 및 롤백을 위한 서비스
@@ -28,6 +37,17 @@ public class TestDataService {
     private final ProductRepository productRepository;
     private final PasswordEncoder passwordEncoder;
     private final Random random = new Random();
+    
+    // EntityManager 주입
+    @PersistenceContext
+    private EntityManager entityManager;
+    
+    // 성능 최적화를 위한 설정값
+    // 스레드 풀 크기: CPU 코어 수 * 2 (I/O 작업이 많으므로)
+    private static final int THREAD_POOL_SIZE = Math.max(8, Runtime.getRuntime().availableProcessors() * 2);
+    
+    // 데이터 배치 처리 크기 (메모리와 성능 균형 최적화)
+    private static final int BATCH_SIZE = 1000;
 
     // 테스트 데이터 식별용 상수
     private static final String TEST_USER_FLAG = "TEST_USER";
@@ -102,112 +122,200 @@ public class TestDataService {
     @Transactional
     public String generateTestData(int userCount, int productCount) {
         logger.info("테스트 데이터 생성 시작: 사용자 {}명, 상품 {}개", userCount, productCount);
+        long startTime = System.currentTimeMillis();
 
         AtomicInteger userSuccessCount = new AtomicInteger(0);
         AtomicInteger productSuccessCount = new AtomicInteger(0);
         AtomicInteger userFailCount = new AtomicInteger(0);
         AtomicInteger productFailCount = new AtomicInteger(0);
 
-        List<User> users;
         try {
-            // 사용자 생성
-            users = new ArrayList<>();
-            for (int i = 1; i <= userCount; i++) {
-                try {
-                    // 랜덤하게 이름과 성 선택
-                    String firstName = FIRST_NAMES[random.nextInt(FIRST_NAMES.length)];
-                    String lastName = LAST_NAMES[random.nextInt(LAST_NAMES.length)];
-                    // 사용자명 구성: 예를 들어, "JacobSmith1234"
-                    String username = firstName + lastName + String.format("%04d", i);
-                    // 이메일은 모두 소문자로 구성
-                    String email = username.toLowerCase() + "@example.com";
-                    String password = passwordEncoder.encode("password" + i);
+            // 커스텀 스레드 풀 생성 (CPU 바운드 작업과 I/O 바운드 작업에 최적화)
+            ExecutorService executorService = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+            
+            // 병렬로 사용자 및 상품 데이터 생성 실행
+            CompletableFuture<Void> usersFuture = generateUsersAsync(userCount, userSuccessCount, userFailCount, executorService);
+            CompletableFuture<Void> productsFuture = generateProductsAsync(productCount, productSuccessCount, productFailCount, executorService);
+            
+            // 모든 작업 완료 대기
+            CompletableFuture.allOf(usersFuture, productsFuture).join();
+            
+            // 스레드 풀 종료
+            executorService.shutdown();
 
-                    User user = User.builder()
-                            .username(username)
-                            .email(email)
-                            .password(password)
-                            .name(firstName + " " + lastName) // 실제 이름은 띄어쓰기로 구분
-                            .phone("010-1234-" + String.format("%04d", i))
-                            .role(User.Role.ROLE_USER)
-                            .status(User.Status.ACTIVE)
-                            .loginAttempts(0)
-                            .enabled(true)
-                            .accountLocked(false)
-                            .remarks(TEST_USER_FLAG) // 테스트 사용자 식별용 플래그
-                            .lastLoginAt(LocalDateTime.now().minusDays(random.nextInt(30)))
-                            .createdAt(LocalDateTime.now().minusDays(random.nextInt(30)))
-                            .build();
-
-                    users.add(user);
-                    userSuccessCount.incrementAndGet();
-                } catch (Exception e) {
-                    logger.error("사용자 생성 중 오류 발생 (인덱스: {}): {}", i, e.getMessage());
-                    userFailCount.incrementAndGet();
-                }
-                
-                // 메모리 관리를 위해 일정 크기마다 저장
-                if (users.size() >= 100) {
-                    userRepository.saveAll(users);
-                    users.clear();
-                }
-            }
-
-            // 남은 사용자 저장
-            if (!users.isEmpty()) {
-                userRepository.saveAll(users);
-            }
-
-            // 상품 생성
-            List<Product> products = new ArrayList<>();
-            for (int i = 1; i <= productCount; i++) {
-                try {
-                    String name = generateProductName();
-                    Product.Category category = getRandomCategory();
-                    BigDecimal price = new BigDecimal(1000 + random.nextInt(100000)).setScale(0);
-                    int stock = random.nextInt(1000);
-
-                    Product product = Product.builder()
-                            .name(name)
-                            .description(name + "의 상세 설명입니다. 이 제품은 높은 품질과 합리적인 가격을 자랑합니다.")
-                            .price(price)
-                            .stock(stock)
-                            .category(category)
-                            .status(random.nextDouble() < 0.9 ? Product.Status.ACTIVE : Product.Status.INACTIVE)
-                            .remarks(TEST_USER_FLAG) // 테스트 상품 식별용 플래그
-                            .version(0L) // 낙관적 락을 위한 버전 필드 추가
-                            .createdAt(LocalDateTime.now().minusDays(random.nextInt(30)))
-                            .build();
-
-                    products.add(product);
-                    productSuccessCount.incrementAndGet();
-                } catch (Exception e) {
-                    logger.error("상품 생성 중 오류 발생 (인덱스: {}): {}", i, e.getMessage());
-                    productFailCount.incrementAndGet();
-                }
-
-                // 메모리 관리를 위해 일정 크기마다 저장
-                if (products.size() >= 100) {
-                    productRepository.saveAll(products);
-                    products.clear();
-                }
-            }
-
-            // 남은 상품 저장
-            if (!products.isEmpty()) {
-                productRepository.saveAll(products);
-            }
-
-            logger.info("테스트 데이터 생성 완료: 사용자 {}명(실패: {}명), 상품 {}개(실패: {}개)",
+            long endTime = System.currentTimeMillis();
+            long durationMs = endTime - startTime;
+            
+            // 초당 처리량 계산
+            double userTps = userSuccessCount.get() * 1000.0 / durationMs;
+            double productTps = productSuccessCount.get() * 1000.0 / durationMs;
+            
+            logger.info("테스트 데이터 생성 완료: 사용자 {}명(실패: {}명), 상품 {}개(실패: {}개), 소요 시간: {}ms, TPS: 사용자 {}/s, 상품 {}/s",
                     userSuccessCount.get(), userFailCount.get(),
-                    productSuccessCount.get(), productFailCount.get());
+                    productSuccessCount.get(), productFailCount.get(),
+                    durationMs, String.format("%.2f", userTps), String.format("%.2f", productTps));
 
-            return String.format("테스트 데이터 생성 완료: 사용자 %d명(실패: %d명), 상품 %d개(실패: %d개)",
+            return String.format("테스트 데이터 생성 완료: 사용자 %d명(실패: %d명), 상품 %d개(실패: %d명), 소요 시간: %dms, TPS: 사용자 %.2f/s, 상품 %.2f/s",
                     userSuccessCount.get(), userFailCount.get(),
-                    productSuccessCount.get(), productFailCount.get());
+                    productSuccessCount.get(), productFailCount.get(),
+                    durationMs, userTps, productTps);
         } catch (Exception e) {
             logger.error("테스트 데이터 생성 중 예외 발생: {}", e.getMessage(), e);
             return "테스트 데이터 생성 중 오류가 발생했습니다: " + e.getMessage();
+        }
+    }
+    
+    /**
+     * 사용자 데이터를 비동기적으로 생성
+     */
+    private CompletableFuture<Void> generateUsersAsync(int userCount, AtomicInteger successCount, AtomicInteger failCount, ExecutorService executorService) {
+        return CompletableFuture.runAsync(() -> {
+            // ForkJoinPool 사용하여 더 효율적인 병렬 처리 구현
+            ForkJoinPool customPool = new ForkJoinPool(THREAD_POOL_SIZE);
+            
+            try {
+                customPool.submit(() -> {
+                    // 사용자 생성 및 배치 처리를 위한 스트림 분할
+                    int batchCount = (userCount + BATCH_SIZE - 1) / BATCH_SIZE; // 올림 나눗셈
+                    
+                    IntStream.range(0, batchCount).parallel().forEach(batchIndex -> {
+                        int startIdx = batchIndex * BATCH_SIZE + 1;
+                        int endIdx = Math.min((batchIndex + 1) * BATCH_SIZE, userCount);
+                        
+                        List<User> userBatch = new ArrayList<>();
+                        
+                        for (int i = startIdx; i <= endIdx; i++) {
+                            try {
+                                // ThreadLocalRandom 사용으로 스레드 간 경합 감소
+                                ThreadLocalRandom localRandom = ThreadLocalRandom.current();
+                                
+                                // 랜덤하게 이름과 성 선택
+                                String firstName = FIRST_NAMES[localRandom.nextInt(FIRST_NAMES.length)];
+                                String lastName = LAST_NAMES[localRandom.nextInt(LAST_NAMES.length)];
+                                // 사용자명 구성: 예를 들어, "JacobSmith1234"
+                                String username = firstName + lastName + String.format("%04d", i);
+                                // 이메일은 모두 소문자로 구성
+                                String email = username.toLowerCase() + "@example.com";
+                                String password = passwordEncoder.encode("password" + i);
+
+                                User user = User.builder()
+                                        .username(username)
+                                        .email(email)
+                                        .password(password)
+                                        .name(firstName + " " + lastName) // 실제 이름은 띄어쓰기로 구분
+                                        .phone("010-1234-" + String.format("%04d", i))
+                                        .role(User.Role.ROLE_USER)
+                                        .status(User.Status.ACTIVE)
+                                        .loginAttempts(0)
+                                        .enabled(true)
+                                        .accountLocked(false)
+                                        .remarks(TEST_USER_FLAG) // 테스트 사용자 식별용 플래그
+                                        .lastLoginAt(LocalDateTime.now().minusDays(localRandom.nextInt(30)))
+                                        .createdAt(LocalDateTime.now().minusDays(localRandom.nextInt(30)))
+                                        .build();
+
+                                userBatch.add(user);
+                                successCount.incrementAndGet();
+                            } catch (Exception e) {
+                                logger.error("사용자 생성 중 오류 발생 (인덱스: {}): {}", i, e.getMessage());
+                                failCount.incrementAndGet();
+                            }
+                        }
+                        
+                        // 트랜잭션 내에서 배치 저장
+                        if (!userBatch.isEmpty()) {
+                            saveUserBatch(userBatch);
+                        }
+                    });
+                }).get(); // 작업 완료 대기
+            } catch (Exception e) {
+                logger.error("사용자 생성 작업 중 오류 발생: {}", e.getMessage(), e);
+            } finally {
+                customPool.shutdown();
+            }
+        }, executorService);
+    }
+    
+    /**
+     * 사용자 데이터 배치 저장 (트랜잭션 처리)
+     */
+    @Transactional
+    public void saveUserBatch(List<User> users) {
+        if (!users.isEmpty()) {
+            userRepository.saveAll(users);
+        }
+    }
+    
+    /**
+     * 상품 데이터를 비동기적으로 생성
+     */
+    private CompletableFuture<Void> generateProductsAsync(int productCount, AtomicInteger successCount, AtomicInteger failCount, ExecutorService executorService) {
+        return CompletableFuture.runAsync(() -> {
+            // ForkJoinPool 사용하여 더 효율적인 병렬 처리 구현
+            ForkJoinPool customPool = new ForkJoinPool(THREAD_POOL_SIZE);
+            
+            try {
+                customPool.submit(() -> {
+                    // 상품 생성 및 배치 처리를 위한 스트림 분할
+                    int batchCount = (productCount + BATCH_SIZE - 1) / BATCH_SIZE; // 올림 나눗셈
+                    
+                    IntStream.range(0, batchCount).parallel().forEach(batchIndex -> {
+                        int startIdx = batchIndex * BATCH_SIZE + 1;
+                        int endIdx = Math.min((batchIndex + 1) * BATCH_SIZE, productCount);
+                        
+                        List<Product> productBatch = new ArrayList<>();
+                        
+                        for (int i = startIdx; i <= endIdx; i++) {
+                            try {
+                                // ThreadLocalRandom 사용으로 스레드 간 경합 감소
+                                ThreadLocalRandom localRandom = ThreadLocalRandom.current();
+                                
+                                String name = generateProductName(localRandom);
+                                Product.Category category = getRandomCategory(localRandom);
+                                BigDecimal price = new BigDecimal(1000 + localRandom.nextInt(100000)).setScale(0);
+                                int stock = localRandom.nextInt(1000);
+
+                                Product product = Product.builder()
+                                        .name(name)
+                                        .description(name + "의 상세 설명입니다. 이 제품은 높은 품질과 합리적인 가격을 자랑합니다.")
+                                        .price(price)
+                                        .stock(stock)
+                                        .category(category)
+                                        .status(localRandom.nextDouble() < 0.9 ? Product.Status.ACTIVE : Product.Status.INACTIVE)
+                                        .remarks(TEST_USER_FLAG) // 테스트 상품 식별용 플래그
+                                        .version(0L) // 낙관적 락을 위한 버전 필드 추가
+                                        .createdAt(LocalDateTime.now().minusDays(localRandom.nextInt(30)))
+                                        .build();
+
+                                productBatch.add(product);
+                                successCount.incrementAndGet();
+                            } catch (Exception e) {
+                                logger.error("상품 생성 중 오류 발생 (인덱스: {}): {}", i, e.getMessage());
+                                failCount.incrementAndGet();
+                            }
+                        }
+                        
+                        // 트랜잭션 내에서 배치 저장
+                        if (!productBatch.isEmpty()) {
+                            saveProductBatch(productBatch);
+                        }
+                    });
+                }).get(); // 작업 완료 대기
+            } catch (Exception e) {
+                logger.error("상품 생성 작업 중 오류 발생: {}", e.getMessage(), e);
+            } finally {
+                customPool.shutdown();
+            }
+        }, executorService);
+    }
+    
+    /**
+     * 상품 데이터 배치 저장 (트랜잭션 처리)
+     */
+    @Transactional
+    public void saveProductBatch(List<Product> products) {
+        if (!products.isEmpty()) {
+            productRepository.saveAll(products);
         }
     }
 
@@ -218,24 +326,131 @@ public class TestDataService {
     @Transactional
     public String rollbackTestData() {
         logger.info("테스트 데이터 롤백 시작");
+        long startTime = System.currentTimeMillis();
         
         int deletedUsers = 0;
         int deletedProducts = 0;
+        int deletedCartItems = 0;
+        int deletedOrderItems = 0;
         
         try {
-            // 테스트 사용자 삭제 (remarks 필드로 식별)
-            List<User> testUsers = userRepository.findByRemarks(TEST_USER_FLAG);
-            deletedUsers = testUsers.size();
-            userRepository.deleteAll(testUsers);
+            // 1. 먼저 테스트 상품과 연관된 장바구니 아이템을 삭제 (외래 키 제약 조건 해결)
+            logger.info("장바구니 아이템 삭제 시작 - 테스트 상품 관련");
             
-            // 테스트 상품 삭제 (remarks 필드로 식별)
+            // JPQL을 사용하여 테스트 상품 ID와 연결된 장바구니 아이템을 삭제
+            String cartItemsDeleteQuery = 
+                "DELETE FROM CartItem ci WHERE ci.product.id IN " +
+                "(SELECT p.id FROM Product p WHERE p.remarks = :testFlag)";
+            
+            // 직접 EntityManager를 사용하여 벌크 삭제 수행
+            int deletedItems = entityManager.createQuery(cartItemsDeleteQuery)
+                .setParameter("testFlag", TEST_USER_FLAG)
+                .executeUpdate();
+                
+            logger.info("테스트 상품 관련 장바구니 아이템 {}개 삭제 완료", deletedItems);
+            deletedCartItems = deletedItems;
+            
+            // 2. 테스트 상품과 연관된 주문 아이템을 삭제 (외래 키 제약 조건 해결)
+            logger.info("주문 아이템 삭제 시작 - 테스트 상품 관련");
+            
+            String orderItemsDeleteQuery = 
+                "DELETE FROM OrderItem oi WHERE oi.product.id IN " +
+                "(SELECT p.id FROM Product p WHERE p.remarks = :testFlag)";
+                
+            deletedItems = entityManager.createQuery(orderItemsDeleteQuery)
+                .setParameter("testFlag", TEST_USER_FLAG)
+                .executeUpdate();
+                
+            logger.info("테스트 상품 관련 주문 아이템 {}개 삭제 완료", deletedItems);
+            deletedOrderItems = deletedItems;
+            
+            // 3. 테스트 사용자와 연관된 장바구니를 삭제
+            logger.info("장바구니 삭제 시작 - 테스트 사용자 관련");
+            
+            String cartsDeleteQuery = 
+                "DELETE FROM Cart c WHERE c.user.id IN " +
+                "(SELECT u.id FROM User u WHERE u.remarks = :testFlag)";
+                
+            deletedItems = entityManager.createQuery(cartsDeleteQuery)
+                .setParameter("testFlag", TEST_USER_FLAG)
+                .executeUpdate();
+                
+            logger.info("테스트 사용자 관련 장바구니 {}개 삭제 완료", deletedItems);
+            
+            // 4. 테스트 사용자와 연관된 주문을 삭제
+            logger.info("주문 삭제 시작 - 테스트 사용자 관련");
+            
+            String ordersDeleteQuery = 
+                "DELETE FROM Order o WHERE o.user.id IN " +
+                "(SELECT u.id FROM User u WHERE u.remarks = :testFlag)";
+                
+            deletedItems = entityManager.createQuery(ordersDeleteQuery)
+                .setParameter("testFlag", TEST_USER_FLAG)
+                .executeUpdate();
+                
+            logger.info("테스트 사용자 관련 주문 {}개 삭제 완료", deletedItems);
+            
+            // 5. 이제 테스트 상품 삭제 (자식 레코드가 모두 삭제된 상태)
             List<Product> testProducts = productRepository.findByRemarks(TEST_USER_FLAG);
-            deletedProducts = testProducts.size();
-            productRepository.deleteAll(testProducts);
+            logger.info("롤백할 테스트 상품 발견: {}개", testProducts.size());
             
-            logger.info("테스트 데이터 롤백 완료: 사용자 {}명, 상품 {}개 삭제", deletedUsers, deletedProducts);
+            if (testProducts.isEmpty()) {
+                logger.warn("롤백할 테스트 상품이 없습니다. remarks={}", TEST_USER_FLAG);
+            } else {
+                // 상품 ID 목록 로깅 (문제 해결용)
+                if (logger.isDebugEnabled()) {
+                    List<Long> productIds = testProducts.stream().map(Product::getId).collect(Collectors.toList());
+                    logger.debug("롤백할 상품 ID 목록: {}", productIds);
+                }
+                
+                // JPQL로 직접 삭제 (저장소 사용 대신)
+                String productsDeleteQuery = 
+                    "DELETE FROM Product p WHERE p.remarks = :testFlag";
+                    
+                deletedProducts = entityManager.createQuery(productsDeleteQuery)
+                    .setParameter("testFlag", TEST_USER_FLAG)
+                    .executeUpdate();
+                    
+                logger.info("테스트 상품 {}개 삭제 완료", deletedProducts);
+            }
             
-            return String.format("테스트 데이터 롤백 완료: 사용자 %d명, 상품 %d개 삭제", deletedUsers, deletedProducts);
+            // 6. 마지막으로 테스트 사용자 삭제
+            List<User> testUsers = userRepository.findByRemarks(TEST_USER_FLAG);
+            logger.info("롤백할 테스트 사용자 발견: {}명", testUsers.size());
+            
+            if (testUsers.isEmpty()) {
+                logger.warn("롤백할 테스트 사용자가 없습니다. remarks={}", TEST_USER_FLAG);
+            } else {
+                // 사용자 ID 목록 로깅 (문제 해결용)
+                if (logger.isDebugEnabled()) {
+                    List<Long> userIds = testUsers.stream().map(User::getId).collect(Collectors.toList());
+                    logger.debug("롤백할 사용자 ID 목록: {}", userIds);
+                }
+                
+                // JPQL로 직접 삭제 (저장소 사용 대신)
+                String usersDeleteQuery = 
+                    "DELETE FROM User u WHERE u.remarks = :testFlag";
+                    
+                deletedUsers = entityManager.createQuery(usersDeleteQuery)
+                    .setParameter("testFlag", TEST_USER_FLAG)
+                    .executeUpdate();
+                    
+                logger.info("테스트 사용자 {}명 삭제 완료", deletedUsers);
+            }
+            
+            // 명시적 flush 없음 - JPQL delete 쿼리는 자동으로 flush 됨
+            
+            long endTime = System.currentTimeMillis();
+            long durationMs = endTime - startTime;
+            
+            // 초당 처리량 계산
+            double deleteTps = (deletedUsers + deletedProducts + deletedCartItems + deletedOrderItems) * 1000.0 / Math.max(1, durationMs);
+            
+            logger.info("테스트 데이터 롤백 완료: 사용자 {}명, 상품 {}개, 장바구니 아이템 {}개, 주문 아이템 {}개 삭제, 소요 시간: {}ms, TPS: {}/s", 
+                    deletedUsers, deletedProducts, deletedCartItems, deletedOrderItems, durationMs, String.format("%.2f", deleteTps));
+            
+            return String.format("테스트 데이터 롤백 완료: 사용자 %d명, 상품 %d개 삭제, 소요 시간: %dms, TPS: %.2f/s", 
+                    deletedUsers, deletedProducts, durationMs, deleteTps);
         } catch (Exception e) {
             logger.error("테스트 데이터 롤백 중 예외 발생: {}", e.getMessage(), e);
             return "테스트 데이터 롤백 중 오류가 발생했습니다: " + e.getMessage();
@@ -243,10 +458,10 @@ public class TestDataService {
     }
     
     /**
-     * 랜덤 상품명 생성
+     * 랜덤 상품명 생성 (ThreadLocalRandom 사용)
      * @return 생성된 상품명
      */
-    private String generateProductName() {
+    private String generateProductName(ThreadLocalRandom random) {
         String prefix = PRODUCT_PREFIXES[random.nextInt(PRODUCT_PREFIXES.length)];
         String base = PRODUCT_BASES[random.nextInt(PRODUCT_BASES.length)];
         String suffix = random.nextDouble() < 0.7 ? PRODUCT_SUFFIXES[random.nextInt(PRODUCT_SUFFIXES.length)] : "";
@@ -255,10 +470,10 @@ public class TestDataService {
     }
     
     /**
-     * 랜덤 카테고리 반환
+     * 랜덤 카테고리 반환 (ThreadLocalRandom 사용)
      * @return 랜덤 카테고리
      */
-    private Product.Category getRandomCategory() {
+    private Product.Category getRandomCategory(ThreadLocalRandom random) {
         Product.Category[] categories = Product.Category.values();
         return categories[random.nextInt(categories.length)];
     }

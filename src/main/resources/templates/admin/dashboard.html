@@ -124,83 +124,288 @@
             </div>
         </div>
 
-        <!-- 시스템 자원 모니터링 -->
+        <!-- 테스트 데이터 성능 모니터링 -->
         <div class="row">
-            <h4 class="mb-3 mt-2">시스템 자원 모니터링</h4>
-            <!-- CPU 사용률 카드 -->
-            <div class="col-xl-4 col-md-6 mb-4">
-                <div class="card shadow h-100">
+            <div class="col-12">
+                <div class="card shadow mb-4">
                     <div class="card-header py-3">
-                        <h6 class="m-0 font-weight-bold text-primary">CPU 사용률</h6>
+                        <h6 class="m-0 font-weight-bold text-primary">테스트 데이터 성능 모니터링</h6>
                     </div>
                     <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="chart-container">
-                                    <canvas id="cpuUsageChart"></canvas>
+                        <div id="performanceResult" style="display: none;">
+                            <div class="row">
+                                <!-- 최근 작업 정보 -->
+                                <div class="col-lg-4 mb-4">
+                                    <div class="card border-left-info h-100">
+                                        <div class="card-body">
+                                            <div class="text-xs font-weight-bold text-info text-uppercase mb-1">최근 작업 정보</div>
+                                            <div class="mt-3">
+                                                <div class="row mb-2">
+                                                    <div class="col-5 text-gray-500">작업 유형:</div>
+                                                    <div class="col-7 font-weight-bold" id="operationType">-</div>
+                                                </div>
+                                                <div class="row mb-2">
+                                                    <div class="col-5 text-gray-500">실행 시간:</div>
+                                                    <div class="col-7 font-weight-bold" id="operationTime">-</div>
+                                                </div>
+                                                <div class="row mb-2">
+                                                    <div class="col-5 text-gray-500">소요 시간:</div>
+                                                    <div class="col-7 font-weight-bold" id="durationMs">-</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- 처리량(TPS) -->
+                                <div class="col-lg-4 mb-4">
+                                    <div class="card border-left-success h-100">
+                                        <div class="card-body">
+                                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">초당 처리량 (TPS)</div>
+                                            <div class="mt-3">
+                                                <div class="row mb-2" id="userTpsRow" style="display: none;">
+                                                    <div class="col-5 text-gray-500">사용자 TPS:</div>
+                                                    <div class="col-7 font-weight-bold" id="userTps">-</div>
+                                                </div>
+                                                <div class="row mb-2" id="productTpsRow" style="display: none;">
+                                                    <div class="col-5 text-gray-500">상품 TPS:</div>
+                                                    <div class="col-7 font-weight-bold" id="productTps">-</div>
+                                                </div>
+                                                <div class="row mb-2" id="deleteTpsRow" style="display: none;">
+                                                    <div class="col-5 text-gray-500">삭제 TPS:</div>
+                                                    <div class="col-7 font-weight-bold" id="deleteTps">-</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- 처리 결과 -->
+                                <div class="col-lg-4 mb-4">
+                                    <div class="card border-left-primary h-100">
+                                        <div class="card-body">
+                                            <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">처리 결과</div>
+                                            <div class="mt-3" id="resultDetails">
+                                                <!-- 처리 결과 정보가 동적으로 추가됩니다 -->
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="col-auto">
-                                <div class="h5 mb-0 font-weight-bold text-gray-800" id="cpuUsageValue">
-                                    <span th:text="${systemResources != null ? systemResources.cpuUsage : '0.00'}">0.00</span>%
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 메모리 사용량 카드 -->
-            <div class="col-xl-4 col-md-6 mb-4">
-                <div class="card shadow h-100">
-                    <div class="card-header py-3">
-                        <h6 class="m-0 font-weight-bold text-primary">메모리 사용량</h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="small font-weight-bold">
-                                    총 메모리: <span th:text="${systemResources != null ? systemResources.totalMemory : '0 MB'}">0 MB</span>
-                                </div>
-                                <div class="small font-weight-bold">
-                                    사용 중: <span th:text="${systemResources != null ? systemResources.usedMemory : '0 MB'}">0 MB</span>
-                                </div>
-                                <div class="small font-weight-bold">
-                                    여유 메모리: <span th:text="${systemResources != null ? systemResources.freeMemory : '0 MB'}">0 MB</span>
-                                </div>
-                                <div class="progress mb-4 mt-2">
-                                    <div class="progress-bar bg-primary" role="progressbar" 
-                                        th:style="'width: ' + ${systemResources != null ? systemResources.memoryUsagePercent : '0'} + '%'" 
-                                        aria-valuemin="0" aria-valuemax="100">
-                                        <span th:text="${systemResources != null ? systemResources.memoryUsagePercent : '0.00'}">0.00</span>%
+                            
+                            <!-- 성능 차트 -->
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="card shadow mb-4">
+                                        <div class="card-header py-3">
+                                            <h6 class="m-0 font-weight-bold text-primary">성능 지표</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="chart-container" style="height: 300px;">
+                                                <canvas id="performanceChart"></canvas>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+                        <div id="noPerformanceData" class="text-center py-5">
+                            <i class="bi bi-bar-chart-line fs-1 text-gray-300"></i>
+                            <p class="mt-3 text-gray-500">데이터를 생성하거나 롤백하면 성능 지표가 여기에 표시됩니다.</p>
+                        </div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- 힙 메모리 사용량 카드 -->
-            <div class="col-xl-4 col-md-6 mb-4">
-                <div class="card shadow h-100">
-                    <div class="card-header py-3">
-                        <h6 class="m-0 font-weight-bold text-primary">JVM 힙 메모리</h6>
+        <!-- 시스템 자원 모니터링 -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3 d-flex align-items-center justify-content-between">
+                        <h6 class="m-0 font-weight-bold text-primary">시스템 자원 모니터링</h6>
+                        <button class="btn btn-sm btn-outline-primary refresh-btn" id="refreshMonitoringBtn">
+                            <i class="bi bi-arrow-clockwise"></i> 새로고침
+                        </button>
                     </div>
                     <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="small font-weight-bold">
-                                    최대 힙 크기: <span th:text="${systemResources != null ? systemResources.heapMemoryMax : '0 MB'}">0 MB</span>
+                        <div class="row">
+                            <!-- CPU 사용률 -->
+                            <div class="col-lg-4 mb-4">
+                                <div class="card border-left-primary h-100">
+                                    <div class="card-body">
+                                        <div class="row no-gutters align-items-center">
+                                            <div class="col-auto pr-3">
+                                                <i class="bi bi-cpu fs-1 text-primary"></i>
+                                            </div>
+                                            <div class="col">
+                                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">CPU 사용률</div>
+                                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                                    <span th:text="${systemResources != null ? systemResources.cpuUsage : '0.00'}">0.00</span>%
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-3">
+                                            <div class="chart-container" style="height: 200px;">
+                                                <canvas id="cpuUsageChart"></canvas>
+                                            </div>
+                                            <div class="text-center mt-2">
+                                                <div class="small">
+                                                    <span class="mr-2">
+                                                        <i class="bi bi-circle-fill text-primary"></i> 사용 중
+                                                    </span>
+                                                    <span>
+                                                        <i class="bi bi-circle-fill text-gray-200"></i> 여유
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="small font-weight-bold">
-                                    사용 중인 힙: <span th:text="${systemResources != null ? systemResources.heapMemoryUsed : '0 MB'}">0 MB</span>
+                            </div>
+
+                            <!-- 메모리 사용량 -->
+                            <div class="col-lg-4 mb-4">
+                                <div class="card border-left-success h-100">
+                                    <div class="card-body">
+                                        <div class="row no-gutters align-items-center">
+                                            <div class="col-auto pr-3">
+                                                <i class="bi bi-memory fs-1 text-success"></i>
+                                            </div>
+                                            <div class="col">
+                                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">메모리 사용량</div>
+                                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                                    <span th:text="${systemResources != null ? systemResources.memoryUsagePercent : '0.00'}">0.00</span>%
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-3">
+                                            <div class="chart-container" style="height: 200px;">
+                                                <canvas id="memoryUsageChart"></canvas>
+                                            </div>
+                                            <div class="row no-gutters mt-2">
+                                                <div class="col-12 text-center mb-1">
+                                                    <span class="small">
+                                                        <i class="bi bi-circle-fill text-success"></i> 사용 중
+                                                        <i class="bi bi-circle-fill text-gray-200 ml-2"></i> 여유
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div class="row no-gutters mt-2">
+                                                <div class="col-4 text-center">
+                                                    <div class="small text-xs text-gray-500">총 메모리</div>
+                                                    <div class="small font-weight-bold" th:text="${systemResources != null ? systemResources.totalMemory : '0 MB'}">0 MB</div>
+                                                </div>
+                                                <div class="col-4 text-center">
+                                                    <div class="small text-xs text-gray-500">사용 중</div>
+                                                    <div class="small font-weight-bold" th:text="${systemResources != null ? systemResources.usedMemory : '0 MB'}">0 MB</div>
+                                                </div>
+                                                <div class="col-4 text-center">
+                                                    <div class="small text-xs text-gray-500">여유 메모리</div>
+                                                    <div class="small font-weight-bold" th:text="${systemResources != null ? systemResources.freeMemory : '0 MB'}">0 MB</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="progress mb-4 mt-2">
-                                    <div class="progress-bar bg-success" role="progressbar" 
-                                        th:style="'width: ' + ${systemResources != null ? systemResources.heapUsagePercent : '0'} + '%'" 
-                                        aria-valuemin="0" aria-valuemax="100">
-                                        <span th:text="${systemResources != null ? systemResources.heapUsagePercent : '0.00'}">0.00</span>%
+                            </div>
+
+                            <!-- JVM 힙 메모리 -->
+                            <div class="col-lg-4 mb-4">
+                                <div class="card border-left-info h-100">
+                                    <div class="card-body">
+                                        <div class="row no-gutters align-items-center">
+                                            <div class="col-auto pr-3">
+                                                <i class="bi bi-diagram-3 fs-1 text-info"></i>
+                                            </div>
+                                            <div class="col">
+                                                <div class="text-xs font-weight-bold text-info text-uppercase mb-1">JVM 힙 메모리</div>
+                                                <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                                    <span th:text="${systemResources != null ? systemResources.heapUsagePercent : '0.00'}">0.00</span>%
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-3">
+                                            <div class="chart-container" style="height: 200px;">
+                                                <canvas id="heapUsageChart"></canvas>
+                                            </div>
+                                            <div class="row no-gutters mt-2">
+                                                <div class="col-12 text-center mb-1">
+                                                    <span class="small">
+                                                        <i class="bi bi-circle-fill text-info"></i> 사용 중
+                                                        <i class="bi bi-circle-fill text-gray-200 ml-2"></i> 여유
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div class="row no-gutters mt-2">
+                                                <div class="col-6 text-center">
+                                                    <div class="small text-xs text-gray-500">최대 힙 크기</div>
+                                                    <div class="small font-weight-bold" th:text="${systemResources != null ? systemResources.heapMemoryMax : '0 MB'}">0 MB</div>
+                                                </div>
+                                                <div class="col-6 text-center">
+                                                    <div class="small text-xs text-gray-500">사용 중인 힙</div>
+                                                    <div class="small font-weight-bold" th:text="${systemResources != null ? systemResources.heapMemoryUsed : '0 MB'}">0 MB</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 런타임 정보 -->
+                        <div class="row">
+                            <div class="col-lg-6 mb-4">
+                                <div class="card border-left-warning h-100">
+                                    <div class="card-body">
+                                        <div class="row no-gutters align-items-center">
+                                            <div class="col-auto pr-3">
+                                                <i class="bi bi-clock-history fs-1 text-warning"></i>
+                                            </div>
+                                            <div class="col">
+                                                <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">시스템 가동 정보</div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-3">
+                                            <div class="row mb-2">
+                                                <div class="col-5 text-gray-500">JVM 시작 시간:</div>
+                                                <div class="col-7 font-weight-bold" th:text="${systemResources != null ? systemResources.jvmStartTime : '-'}">-</div>
+                                            </div>
+                                            <div class="row mb-2">
+                                                <div class="col-5 text-gray-500">가동 시간:</div>
+                                                <div class="col-7 font-weight-bold" th:text="${systemResources != null ? systemResources.jvmUptime : '-'}">-</div>
+                                            </div>
+                                            <div class="row mb-2">
+                                                <div class="col-5 text-gray-500">CPU 코어:</div>
+                                                <div class="col-7 font-weight-bold" th:text="${systemResources != null ? systemResources.availableProcessors : '0'} + '개'">0개</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 가비지 컬렉션 정보 -->
+                            <div class="col-lg-6 mb-4">
+                                <div class="card border-left-danger h-100">
+                                    <div class="card-body">
+                                        <div class="row no-gutters align-items-center">
+                                            <div class="col-auto pr-3">
+                                                <i class="bi bi-recycle fs-1 text-danger"></i>
+                                            </div>
+                                            <div class="col">
+                                                <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">가비지 컬렉션 정보</div>
+                                            </div>
+                                        </div>
+                                        <div class="mt-3">
+                                            <div class="row mb-2">
+                                                <div class="col-6 text-gray-500">총 GC 횟수:</div>
+                                                <div class="col-6 font-weight-bold" th:text="${systemResources != null && systemResources.gcInfo != null ? systemResources.gcInfo.totalGcCount : '0'}">0</div>
+                                            </div>
+                                            <div class="row mb-2">
+                                                <div class="col-6 text-gray-500">총 GC 시간:</div>
+                                                <div class="col-6 font-weight-bold" th:text="${systemResources != null && systemResources.gcInfo != null ? systemResources.gcInfo.totalGcTime : '0s'}">0s</div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -219,6 +424,29 @@
             const memoryUsage = /*[[${systemResources != null ? systemResources.memoryUsageRaw : 0}]]*/ 0;
             const heapUsage = /*[[${systemResources != null ? systemResources.heapUsageRaw : 0}]]*/ 0;
             
+            // 차트 설정
+            const chartOptions = {
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.label + ': ' + context.formattedValue + '%';
+                            }
+                        }
+                    }
+                },
+                elements: {
+                    arc: {
+                        borderWidth: 0
+                    }
+                }
+            };
+            
             // CPU 사용량 차트
             const cpuCtx = document.getElementById('cpuUsageChart').getContext('2d');
             const cpuChart = new Chart(cpuCtx, {
@@ -229,18 +457,10 @@
                         data: [cpuUsage, 100 - cpuUsage],
                         backgroundColor: ['#4e73df', '#f8f9fc'],
                         hoverBackgroundColor: ['#2e59d9', '#eaecf4'],
-                        hoverBorderColor: "rgba(234, 236, 244, 1)",
+                        borderWidth: 0
                     }],
                 },
-                options: {
-                    maintainAspectRatio: false,
-                    cutout: '80%',
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    }
-                }
+                options: chartOptions
             });
             
             // 메모리 사용량 차트
@@ -253,18 +473,10 @@
                         data: [memoryUsage, 100 - memoryUsage],
                         backgroundColor: ['#1cc88a', '#f8f9fc'],
                         hoverBackgroundColor: ['#17a673', '#eaecf4'],
-                        hoverBorderColor: "rgba(234, 236, 244, 1)",
+                        borderWidth: 0
                     }],
                 },
-                options: {
-                    maintainAspectRatio: false,
-                    cutout: '80%',
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    }
-                }
+                options: chartOptions
             });
             
             // 힙 메모리 사용량 차트
@@ -275,21 +487,192 @@
                     labels: ['사용 중', '여유'],
                     datasets: [{
                         data: [heapUsage, 100 - heapUsage],
-                        backgroundColor: ['#f6c23e', '#f8f9fc'],
-                        hoverBackgroundColor: ['#dda20a', '#eaecf4'],
-                        hoverBorderColor: "rgba(234, 236, 244, 1)",
+                        backgroundColor: ['#36b9cc', '#f8f9fc'],
+                        hoverBackgroundColor: ['#2c9faf', '#eaecf4'],
+                        borderWidth: 0
                     }],
                 },
-                options: {
-                    maintainAspectRatio: false,
-                    cutout: '80%',
-                    plugins: {
-                        legend: {
-                            display: false
+                options: chartOptions
+            });
+            
+            // 성능 모니터링 차트 (처음에는 표시 안함)
+            let performanceChart = null;
+            
+            // 새로고침 버튼 이벤트
+            document.getElementById('refreshMonitoringBtn').addEventListener('click', function() {
+                location.reload();
+            });
+            
+            // 성능 차트 업데이트 함수
+            function updatePerformanceChart(labels, data, label) {
+                const ctx = document.getElementById('performanceChart').getContext('2d');
+                
+                // 기존 차트 파괴
+                if (performanceChart) {
+                    performanceChart.destroy();
+                }
+                
+                // 새로운 차트 생성
+                performanceChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: label,
+                            data: data,
+                            backgroundColor: [
+                                '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
                         }
                     }
+                });
+            }
+            
+            // 성능 결과 표시 함수
+            function displayPerformanceResults(data, type) {
+                // 성능 결과 영역 표시
+                document.getElementById('performanceResult').style.display = 'block';
+                document.getElementById('noPerformanceData').style.display = 'none';
+                
+                // 작업 정보 업데이트
+                document.getElementById('operationType').textContent = type === 'generate' ? '데이터 생성' : '데이터 롤백';
+                document.getElementById('operationTime').textContent = new Date().toLocaleString();
+                document.getElementById('durationMs').textContent = data.durationMs ? data.durationMs + 'ms' : '-';
+                
+                // 처리량(TPS) 정보 업데이트
+                if (type === 'generate') {
+                    document.getElementById('userTpsRow').style.display = 'flex';
+                    document.getElementById('productTpsRow').style.display = 'flex';
+                    document.getElementById('deleteTpsRow').style.display = 'none';
+                    
+                    document.getElementById('userTps').textContent = data.userTps ? data.userTps.toFixed(2) + '/초' : '-';
+                    document.getElementById('productTps').textContent = data.productTps ? data.productTps.toFixed(2) + '/초' : '-';
+                } else {
+                    document.getElementById('userTpsRow').style.display = 'none';
+                    document.getElementById('productTpsRow').style.display = 'none';
+                    document.getElementById('deleteTpsRow').style.display = 'flex';
+                    
+                    document.getElementById('deleteTps').textContent = data.deleteTps ? data.deleteTps.toFixed(2) + '/초' : '-';
                 }
-            });
+                
+                // 처리 결과 정보 업데이트
+                const resultDetails = document.getElementById('resultDetails');
+                resultDetails.innerHTML = '';
+                
+                if (type === 'generate') {
+                    const details = [
+                        { label: '생성된 사용자', value: data.userSuccessCount || 0 },
+                        { label: '실패한 사용자', value: data.userFailCount || 0 },
+                        { label: '생성된 상품', value: data.productSuccessCount || 0 },
+                        { label: '실패한 상품', value: data.productFailCount || 0 }
+                    ];
+                    
+                    details.forEach(item => {
+                        const row = document.createElement('div');
+                        row.className = 'row mb-2';
+                        row.innerHTML = `
+                            <div class="col-8 text-gray-500">${item.label}:</div>
+                            <div class="col-4 font-weight-bold">${item.value}</div>
+                        `;
+                        resultDetails.appendChild(row);
+                    });
+                    
+                    // 차트 업데이트
+                    updatePerformanceChart(
+                        ['사용자 TPS', '상품 TPS'], 
+                        [data.userTps || 0, data.productTps || 0],
+                        '초당 처리량 (TPS)'
+                    );
+                } else {
+                    const details = [
+                        { label: '삭제된 사용자', value: data.deletedUsers || 0 },
+                        { label: '삭제된 상품', value: data.deletedProducts || 0 }
+                    ];
+                    
+                    details.forEach(item => {
+                        const row = document.createElement('div');
+                        row.className = 'row mb-2';
+                        row.innerHTML = `
+                            <div class="col-8 text-gray-500">${item.label}:</div>
+                            <div class="col-4 font-weight-bold">${item.value}</div>
+                        `;
+                        resultDetails.appendChild(row);
+                    });
+                    
+                    // 차트 업데이트
+                    updatePerformanceChart(
+                        ['삭제 TPS'], 
+                        [data.deleteTps || 0],
+                        '초당 처리량 (TPS)'
+                    );
+                }
+            }
+            
+            // 성능 데이터 파싱 함수
+            function parsePerformanceData(message) {
+                const data = {};
+                
+                // 소요 시간 파싱
+                const durationMatch = message.match(/소요 시간: (\d+)ms/);
+                if (durationMatch) {
+                    data.durationMs = parseInt(durationMatch[1]);
+                }
+                
+                // 사용자 생성/삭제 정보 파싱
+                if (message.includes('테스트 데이터 생성 완료')) {
+                    // 생성 데이터 파싱
+                    const userCountMatch = message.match(/사용자 (\d+)명\(실패: (\d+)명\)/);
+                    const productCountMatch = message.match(/상품 (\d+)개\(실패: (\d+)명\)/);
+                    const userTpsMatch = message.match(/TPS: 사용자 ([\d.]+)\/s/);
+                    const productTpsMatch = message.match(/상품 ([\d.]+)\/s/);
+                    
+                    if (userCountMatch) {
+                        data.userSuccessCount = parseInt(userCountMatch[1]);
+                        data.userFailCount = parseInt(userCountMatch[2]);
+                    }
+                    
+                    if (productCountMatch) {
+                        data.productSuccessCount = parseInt(productCountMatch[1]);
+                        data.productFailCount = parseInt(productCountMatch[2]);
+                    }
+                    
+                    if (userTpsMatch) {
+                        data.userTps = parseFloat(userTpsMatch[1]);
+                    }
+                    
+                    if (productTpsMatch) {
+                        data.productTps = parseFloat(productTpsMatch[1]);
+                    }
+                    
+                    return { data, type: 'generate' };
+                } else if (message.includes('테스트 데이터 롤백 완료')) {
+                    // 롤백 데이터 파싱
+                    const deletedMatch = message.match(/사용자 (\d+)명, 상품 (\d+)개 삭제/);
+                    const deleteTpsMatch = message.match(/TPS: ([\d.]+)\/s/);
+                    
+                    if (deletedMatch) {
+                        data.deletedUsers = parseInt(deletedMatch[1]);
+                        data.deletedProducts = parseInt(deletedMatch[2]);
+                    }
+                    
+                    if (deleteTpsMatch) {
+                        data.deleteTps = parseFloat(deleteTpsMatch[1]);
+                    }
+                    
+                    return { data, type: 'rollback' };
+                }
+                
+                return { data: {}, type: '' };
+            }
             
             // 테스트 데이터 생성
             document.getElementById('generateDataBtn').addEventListener('click', function() {
@@ -306,14 +689,21 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
+                        // 성능 결과 파싱 및 표시
+                        const { data: perfData, type } = parsePerformanceData(data.message);
+                        displayPerformanceResults(perfData, type);
+                        
                         alert('테스트 데이터가 성공적으로 생성되었습니다.');
-                        window.location.reload();
+                        
+                        // 대시보드 통계 데이터 새로고침
+                        refreshDashboardStats();
                     } else {
                         alert('데이터 생성 실패: ' + data.message);
-                        // 버튼 초기화
-                        this.disabled = false;
-                        this.innerHTML = '<i class="bi bi-database-add"></i> 데이터 생성';
                     }
+                    
+                    // 버튼 초기화
+                    this.disabled = false;
+                    this.innerHTML = '<i class="bi bi-database-add"></i> 데이터 생성';
                 })
                 .catch(error => {
                     alert('오류가 발생했습니다: ' + error);
@@ -336,14 +726,21 @@
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
+                            // 성능 결과 파싱 및 표시
+                            const { data: perfData, type } = parsePerformanceData(data.message);
+                            displayPerformanceResults(perfData, type);
+                            
                             alert('데이터가 성공적으로 롤백되었습니다.');
-                            window.location.reload();
+                            
+                            // 대시보드 통계 데이터 새로고침
+                            refreshDashboardStats();
                         } else {
                             alert('데이터 롤백 실패: ' + data.message);
-                            // 버튼 초기화
-                            this.disabled = false;
-                            this.innerHTML = '<i class="bi bi-database-x"></i> 데이터 롤백';
                         }
+                        
+                        // 버튼 초기화
+                        this.disabled = false;
+                        this.innerHTML = '<i class="bi bi-database-x"></i> 데이터 롤백';
                     })
                     .catch(error => {
                         alert('오류가 발생했습니다: ' + error);
@@ -353,6 +750,36 @@
                     });
                 }
             });
+
+            // 대시보드 통계 데이터 새로고침 함수
+            function refreshDashboardStats() {
+                fetch('/admin/dashboard-stats')
+                    .then(response => response.json())
+                    .then(data => {
+                        // 사용자 수 업데이트
+                        document.querySelector('.text-primary + .h5').textContent = data.userCount;
+                        
+                        // 상품 수 업데이트
+                        document.querySelector('.text-success + .h5').textContent = data.productCount;
+                        
+                        // 주문 수 업데이트 (있는 경우)
+                        const orderCountEl = document.querySelector('.text-info + .h5');
+                        if (orderCountEl && data.orderCount !== undefined) {
+                            orderCountEl.textContent = data.orderCount;
+                        }
+                        
+                        // 총 매출 업데이트 (있는 경우)
+                        const totalSalesEl = document.querySelector('.text-warning + .h5');
+                        if (totalSalesEl && data.totalSales !== undefined) {
+                            totalSalesEl.textContent = data.totalSales;
+                        }
+                        
+                        console.log('대시보드 통계가 업데이트되었습니다.');
+                    })
+                    .catch(error => {
+                        console.error('대시보드 통계 업데이트 중 오류 발생:', error);
+                    });
+            }
         </script>
     </th:block>
 </body>

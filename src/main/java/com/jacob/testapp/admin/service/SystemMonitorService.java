@@ -34,6 +34,7 @@ public class SystemMonitorService {
             OperatingSystemMXBean osBean = ManagementFactory.getOperatingSystemMXBean();
             double cpuLoad = getCpuLoad(osBean);
             resources.put("cpuUsage", decimalFormat.format(cpuLoad * 100));
+            resources.put("cpuUsageRaw", cpuLoad * 100); // 차트용 원시 데이터
             resources.put("availableProcessors", osBean.getAvailableProcessors());
             
             // JVM 메모리 정보
@@ -42,11 +43,13 @@ public class SystemMonitorService {
             long heapMemoryMax = memoryBean.getHeapMemoryUsage().getMax();
             long nonHeapMemoryUsed = memoryBean.getNonHeapMemoryUsage().getUsed();
             
+            double heapUsagePercent = (double) heapMemoryUsed / heapMemoryMax * 100;
             resources.put("heapMemoryUsed", formatSize(heapMemoryUsed));
             resources.put("heapMemoryMax", formatSize(heapMemoryMax));
             resources.put("heapMemoryUsedBytes", heapMemoryUsed);
             resources.put("heapMemoryMaxBytes", heapMemoryMax);
-            resources.put("heapUsagePercent", decimalFormat.format((double) heapMemoryUsed / heapMemoryMax * 100));
+            resources.put("heapUsagePercent", decimalFormat.format(heapUsagePercent));
+            resources.put("heapUsageRaw", heapUsagePercent); // 차트용 원시 데이터
             resources.put("nonHeapMemoryUsed", formatSize(nonHeapMemoryUsed));
             
             // 시스템 메모리 정보 (가능한 경우)
@@ -54,22 +57,25 @@ public class SystemMonitorService {
                 com.sun.management.OperatingSystemMXBean sunOsBean = 
                     (com.sun.management.OperatingSystemMXBean) osBean;
                 
+                // macOS에서는 이 방식이 더 정확합니다
                 long totalPhysicalMemory = sunOsBean.getTotalMemorySize();
+                // 실제 사용 중인 메모리 측정 (가상 메모리 대신)
                 long freePhysicalMemory = sunOsBean.getFreeMemorySize();
                 long usedPhysicalMemory = totalPhysicalMemory - freePhysicalMemory;
+                
+                // 가상 메모리가 아닌 실제 물리 메모리 사용률 계산
+                double memoryUsagePercent = (double) usedPhysicalMemory / totalPhysicalMemory * 100;
+                memoryUsagePercent = Math.min(memoryUsagePercent, 100.0);
                 
                 resources.put("totalMemory", formatSize(totalPhysicalMemory));
                 resources.put("usedMemory", formatSize(usedPhysicalMemory));
                 resources.put("freeMemory", formatSize(freePhysicalMemory));
-                resources.put("memoryUsagePercent", 
-                    decimalFormat.format((double) usedPhysicalMemory / totalPhysicalMemory * 100));
-                
-                resources.put("totalMemoryBytes", totalPhysicalMemory);
-                resources.put("usedMemoryBytes", usedPhysicalMemory);
-                resources.put("freeMemoryBytes", freePhysicalMemory);
+                resources.put("memoryUsagePercent", decimalFormat.format(memoryUsagePercent));
+                resources.put("memoryUsageRaw", memoryUsagePercent);
             } catch (ClassCastException e) {
                 logger.warn("시스템 메모리 정보를 가져오는데 실패했습니다. 제한된 모니터링 정보만 표시됩니다.", e);
                 resources.put("memoryInfoError", "시스템 메모리 정보를 가져오는데 실패했습니다.");
+                resources.put("memoryUsageRaw", 0.0); // 기본값 설정
             }
             
             // 가비지 컬렉션 정보
@@ -86,13 +92,16 @@ public class SystemMonitorService {
             resources.put("error", "시스템 리소스 정보를 수집하는 중 오류가 발생했습니다.");
             // 기본값 설정
             resources.put("cpuUsage", "0.00");
+            resources.put("cpuUsageRaw", 0.0);
             resources.put("heapMemoryUsed", "0 MB");
             resources.put("heapMemoryMax", "0 MB");
             resources.put("heapUsagePercent", "0.00");
+            resources.put("heapUsageRaw", 0.0);
             resources.put("totalMemory", "0 MB");
             resources.put("usedMemory", "0 MB");
             resources.put("freeMemory", "0 MB");
             resources.put("memoryUsagePercent", "0.00");
+            resources.put("memoryUsageRaw", 0.0);
         }
         
         return resources;
@@ -187,14 +196,16 @@ public class SystemMonitorService {
      * @return 형식화된 크기 문자열 (예: "4.2 MB")
      */
     private String formatSize(long bytes) {
+        DecimalFormat df = new DecimalFormat("#,##0.00");
+        
         if (bytes < 1024) {
             return bytes + " B";
         } else if (bytes < 1024 * 1024) {
-            return decimalFormat.format(bytes / 1024.0) + " KB";
+            return df.format(bytes / 1024.0) + " KB";
         } else if (bytes < 1024 * 1024 * 1024) {
-            return decimalFormat.format(bytes / (1024.0 * 1024.0)) + " MB";
+            return df.format(bytes / (1024.0 * 1024.0)) + " MB";
         } else {
-            return decimalFormat.format(bytes / (1024.0 * 1024.0 * 1024.0)) + " GB";
+            return df.format(bytes / (1024.0 * 1024.0 * 1024.0)) + " GB";
         }
     }
     

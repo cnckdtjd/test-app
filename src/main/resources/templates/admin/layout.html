@@ -16,151 +16,13 @@
     
     <!-- 추가 스타일 -->
     <style>
-        .sidebar {
-            position: fixed;
-            top: 0;
-            bottom: 0;
-            left: 0;
-            z-index: 100;
-            padding: 48px 0 0;
-            box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
-            background-color: #343a40;
-        }
-        
-        .sidebar-sticky {
-            position: sticky;
-            top: 0;
-            padding-top: 1rem;
-            height: calc(100vh - 48px);
-            overflow-x: hidden;
-            overflow-y: auto;
-        }
-        
-        .sidebar .nav-link {
-            font-weight: 500;
-            color: #e9ecef;
-            padding: 0.75rem 1rem;
-        }
-        
-        .sidebar .nav-link.active {
-            color: #ffffff;
-            background-color: rgba(255, 255, 255, 0.1);
-        }
-        
-        .sidebar .nav-link:hover {
-            color: #ffffff;
-            background-color: rgba(255, 255, 255, 0.075);
-        }
-        
-        .sidebar .nav-link .bi {
-            margin-right: 0.5rem;
-        }
-        
-        .main-content {
-            margin-left: 240px;
-            padding: 2rem;
-        }
-        
-        .border-left-primary {
-            border-left: 4px solid #4e73df;
-        }
-        
-        .border-left-success {
-            border-left: 4px solid #1cc88a;
-        }
-        
-        .border-left-warning {
-            border-left: 4px solid #f6c23e;
-        }
-        
-        .border-left-danger {
-            border-left: 4px solid #e74a3b;
-        }
-        
-        .border-left-info {
-            border-left: 4px solid #36b9cc;
-        }
-        
-        .text-xs {
-            font-size: 0.7rem;
-        }
-        
-        .text-lg {
-            font-size: 1.2rem;
-        }
-        
-        .font-weight-bold {
-            font-weight: 700;
-        }
-        
-        .user-dropdown {
-            padding: 0.5rem 1rem;
-            margin-bottom: 1rem;
-            text-align: center;
-        }
-        
-        .sidebar .logout-btn {
-            color: #e9ecef;
-            background: none;
-            border: none;
-            display: block;
-            width: 100%;
-            text-align: left;
-            padding: 0.75rem 1rem;
-            font-weight: 500;
-        }
-        
-        .sidebar .logout-btn:hover {
-            color: #ffffff;
-            background-color: rgba(255, 255, 255, 0.075);
-        }
-        
-        .sidebar .logout-btn .bi {
-            margin-right: 0.5rem;
-        }
-        
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 100%;
-                height: auto;
-                position: relative;
-                padding: 0;
-            }
-            
-            .main-content {
-                margin-left: 0;
-            }
-        }
+
     </style>
     
     <!-- 추가 스타일 영역 -->
     <th:block layout:fragment="styles"></th:block>
 </head>
 <body>
-    <!-- 상단 네비게이션 바 -->
-<!--    <nav class="navbar navbar-dark bg-primary fixed-top">-->
-<!--        <div class="container-fluid">-->
-<!--            <a class="navbar-brand" th:href="@{/admin}">Test App 관리자</a>-->
-<!--            -->
-<!--            <div class="d-flex">-->
-<!--                <div class="dropdown">-->
-<!--                    <button class="btn btn-primary dropdown-toggle" type="button" id="userMenuDropdown" data-bs-toggle="dropdown" aria-expanded="false">-->
-<!--                        <i class="bi bi-person-circle me-1"></i>-->
-<!--                        <span sec:authentication="name">Admin</span>-->
-<!--                    </button>-->
-<!--                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userMenuDropdown">-->
-<!--                        <li><a class="dropdown-item" th:href="@{/}">메인 사이트</a></li>-->
-<!--                        <li><hr class="dropdown-divider"></li>-->
-<!--                        <li>-->
-<!--                            <form th:action="@{/logout}" method="post">-->
-<!--                                <button type="submit" class="dropdown-item">로그아웃</button>-->
-<!--                            </form>-->
-<!--                        </li>-->
-<!--                    </ul>-->
-<!--                </div>-->
-<!--            </div>-->
-<!--        </div>-->
-<!--    </nav>-->
 
     <!-- 사이드바 및 메인 콘텐츠 영역 -->
     <div class="container-fluid">
@@ -173,7 +35,6 @@
                             <i class="bi bi-person-circle fs-4 me-2 text-white"></i>
                             <span class="text-white fw-bold" sec:authentication="name">Admin</span>
                         </div>
-                        <a class="btn btn-sm btn-outline-light w-100" th:href="@{/}">메인 사이트</a>
                     </div>
                     <ul class="nav flex-column">
                         <li class="nav-item">

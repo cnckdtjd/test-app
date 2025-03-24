@@ -19,7 +19,7 @@
                         <p class="lead mb-4" th:text="${errorMessage ?: '서버에서 오류가 발생했습니다. 잠시 후 다시 시도해주세요.'}">
                             서버에서 오류가 발생했습니다. 잠시 후 다시 시도해주세요.
                         </p>
-                        <p class="small text-secondary mb-4" th:if="${timestamp}" th:text="${#temporals.format(timestamp, 'yyyy-MM-dd HH:mm:ss')}">
+                        <p class="small text-secondary mb-4" th:if="${timestamp}" th:text="${#dates.format(timestamp, 'yyyy-MM-dd HH:mm:ss')}">
                             2023-06-15 14:30:25
                         </p>
                         <div class="text-center">

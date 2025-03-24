@@ -89,6 +89,36 @@ public class AdminController {
     }
 
     /**
+     * 대시보드 통계 데이터 API - AJAX 요청용
+     */
+    @GetMapping("/dashboard-stats")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> getDashboardStats() {
+        log.info("대시보드 통계 데이터 API 요청");
+        
+        try {
+            Map<String, Object> stats = new HashMap<>();
+            
+            // 사용자 통계
+            long userCount = userService.countUsers();
+            stats.put("userCount", userCount);
+            
+            // 상품 통계
+            long productCount = productService.countProducts();
+            stats.put("productCount", productCount);
+            
+            // 주문 통계 (임시 더미 데이터, 실제로는 OrderService에서 가져와야 함)
+            stats.put("orderCount", 0);
+            stats.put("totalSales", "0원");
+            
+            return ResponseEntity.ok(stats);
+        } catch (Exception e) {
+            log.error("대시보드 통계 데이터 API 요청 처리 중 오류", e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
      * 루트 경로 요청을 대시보드로 리다이렉트
      */
     @GetMapping("")
@@ -161,15 +191,32 @@ public class AdminController {
      */
     @GetMapping("/users/export-credentials")
     public void exportUserCredentialsToCsv(HttpServletResponse response) throws Exception {
-        log.debug("사용자 인증 정보 CSV 내보내기 요청");
+        log.info("사용자 인증 정보 CSV 내보내기 요청");
         
-        response.setContentType("text/csv");
+        // 응답 헤더 설정 - CSV 파일임을 명확히 함
+        response.setContentType("text/csv;charset=UTF-8");
         response.setCharacterEncoding("UTF-8");
         response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=user_credentials.csv");
         
-        byte[] csvData = userExportService.exportUserCredentialsToCsv();
-        response.getOutputStream().write(csvData);
-        response.getOutputStream().flush();
+        try {
+            byte[] csvData = userExportService.exportUserCredentialsToCsv();
+            log.info("CSV 데이터 크기: {} 바이트", csvData.length);
+            
+            // 데이터가 비어있는지 확인
+            if (csvData.length <= 3) { // UTF-8 BOM이 3바이트
+                log.warn("생성된 CSV 데이터가 비어 있습니다!");
+            }
+            
+            response.setContentLength(csvData.length);
+            response.getOutputStream().write(csvData);
+            response.getOutputStream().flush();
+            log.info("사용자 인증정보 CSV 다운로드 완료");
+        } catch (Exception e) {
+            log.error("사용자 인증정보 CSV 내보내기 중 오류 발생: {}", e.getMessage(), e);
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            response.getWriter().write("인증 정보 내보내기 중 오류가 발생했습니다: " + e.getMessage());
+            response.getWriter().flush();
+        }
     }
 
     // 상품 관리
@@ -382,6 +429,35 @@ public class AdminController {
         
         try {
             String result = testDataService.rollbackTestData();
+            log.info("롤백 결과: {}", result);
+            
+            // 롤백 결과 메시지 파싱하여 삭제된 데이터 수 확인
+            int deletedUsers = 0;
+            int deletedProducts = 0;
+            
+            if (result.contains("사용자")) {
+                try {
+                    String userPart = result.split("사용자 ")[1].split("명")[0];
+                    deletedUsers = Integer.parseInt(userPart.trim());
+                } catch (Exception e) {
+                    log.warn("롤백 결과에서 사용자 수 파싱 실패", e);
+                }
+            }
+            
+            if (result.contains("상품")) {
+                try {
+                    String productPart = result.split("상품 ")[1].split("개")[0];
+                    deletedProducts = Integer.parseInt(productPart.trim());
+                } catch (Exception e) {
+                    log.warn("롤백 결과에서 상품 수 파싱 실패", e);
+                }
+            }
+            
+            log.info("롤백된 데이터: 사용자 {}명, 상품 {}개", deletedUsers, deletedProducts);
+            
+            if (deletedUsers == 0 && deletedProducts == 0) {
+                log.warn("롤백 결과는 성공이지만 삭제된 데이터가 없습니다!");
+            }
             
             Map<String, String> response = new HashMap<>();
             response.put("success", "true");
