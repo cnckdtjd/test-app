@@ -70,11 +70,28 @@ public class HomeController {
         model.addAttribute("user", user);
         
         // 장바구니 정보 가져오기
-        Optional<Cart> cart = cartService.findByUserWithItems(user.getId());
-        if (cart.isPresent()) {
-            model.addAttribute("cartItemCount", cart.get().getCartItems().size());
-            model.addAttribute("cartTotalPrice", cart.get().getTotalPrice());
-        } else {
+        try {
+            // 장바구니가 있는지 확인 (아이템이 없어도 장바구니는 존재할 수 있음)
+            Cart cart = cartService.getOrCreateCart(user);
+            
+            // 장바구니 아이템 조회 시도
+            try {
+                Optional<Cart> cartWithItems = cartService.findByUserWithItems(user.getId());
+                if (cartWithItems.isPresent() && !cartWithItems.get().getCartItems().isEmpty()) {
+                    model.addAttribute("cartItemCount", cartWithItems.get().getCartItems().size());
+                    model.addAttribute("cartTotalPrice", cartWithItems.get().getTotalPrice());
+                } else {
+                    // 장바구니는 있지만 아이템이 없는 경우
+                    model.addAttribute("cartItemCount", 0);
+                    model.addAttribute("cartTotalPrice", 0);
+                }
+            } catch (Exception e) {
+                // 장바구니 아이템 조회 실패 시 기본값 설정
+                model.addAttribute("cartItemCount", 0);
+                model.addAttribute("cartTotalPrice", 0);
+            }
+        } catch (Exception e) {
+            // 장바구니 자체를 찾을 수 없는 경우 기본값 설정
             model.addAttribute("cartItemCount", 0);
             model.addAttribute("cartTotalPrice", 0);
         }
@@ -88,7 +105,10 @@ public class HomeController {
     }
 
     @GetMapping("/register")
-    public String register() {
-        return "redirect:/users/register";
+    public String register(Model model) {
+        // 회원가입 폼에 필요한 빈 User 객체 생성
+        model.addAttribute("user", new User());
+        // 리다이렉트 대신 직접 뷰 이름 반환
+        return "user/register";
     }
 } 

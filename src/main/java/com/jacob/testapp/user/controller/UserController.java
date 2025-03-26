@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.security.Principal;
+import java.time.LocalDateTime;
 
 @Controller
 @RequestMapping("/users")
@@ -36,12 +37,26 @@ public class UserController {
     @PostMapping("/register")
     public String registerUser(@Valid @ModelAttribute("user") User user, 
                               BindingResult result, 
+                              @RequestParam(value = "confirmPassword", required = false) String confirmPassword,
                               RedirectAttributes redirectAttributes) {
+        // 비밀번호 확인 검증
+        if (confirmPassword == null || !confirmPassword.equals(user.getPassword())) {
+            result.rejectValue("password", "error.user", "비밀번호와 비밀번호 확인이 일치하지 않습니다.");
+        }
+        
         if (result.hasErrors()) {
             return "user/register";
         }
         
         try {
+            // 사용자 상태 초기화
+            user.setStatus(User.Status.ACTIVE);
+            user.setEnabled(true);
+            user.setLoginAttempts(0);
+            user.setAccountLocked(false);
+            user.setLastLoginAt(LocalDateTime.now());
+            
+            // 사용자 등록
             userService.register(user);
             redirectAttributes.addFlashAttribute("successMessage", "회원가입이 완료되었습니다. 로그인해주세요.");
             return "redirect:/login";

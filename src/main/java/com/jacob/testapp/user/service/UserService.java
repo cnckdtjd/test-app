@@ -2,6 +2,8 @@ package com.jacob.testapp.user.service;
 
 import com.jacob.testapp.user.entity.User;
 import com.jacob.testapp.user.repository.UserRepository;
+import com.jacob.testapp.cart.entity.Cart;
+import com.jacob.testapp.cart.repository.CartRepository;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -12,6 +14,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,13 +28,15 @@ public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CartRepository cartRepository;
     
     private static final int MAX_LOGIN_ATTEMPTS = 5;
 
     // 생성자를 통한 의존성 주입, @Lazy 어노테이션 사용
-    public UserService(UserRepository userRepository, @Lazy PasswordEncoder passwordEncoder) {
+    public UserService(UserRepository userRepository, @Lazy PasswordEncoder passwordEncoder, CartRepository cartRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.cartRepository = cartRepository;
     }
 
     @Override
@@ -115,7 +121,19 @@ public class UserService implements UserDetailsService {
         user.setRole(User.Role.ROLE_USER);
         user.setLoginAttempts(0);
         user.setAccountLocked(false);
-        return userRepository.save(user);
+        user.setLastLoginAt(LocalDateTime.now());
+        
+        // 사용자 저장
+        User savedUser = userRepository.save(user);
+        
+        // 사용자의 장바구니 생성
+        Cart cart = Cart.builder()
+                .user(savedUser)
+                .totalPrice(BigDecimal.ZERO)
+                .build();
+        cartRepository.save(cart);
+        
+        return savedUser;
     }
 
     @Transactional
