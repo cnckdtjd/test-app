@@ -89,6 +89,13 @@
                                 <td>
                                     <span th:class="${product.stock > 10 ? 'text-success' : (product.stock > 0 ? 'text-warning' : 'text-danger')}" 
                                           th:text="${product.stock}">100</span>
+                                    <button class="btn btn-sm btn-outline-primary ms-2" 
+                                            onclick="editStock(this)" 
+                                            th:data-product-id="${product.id}"
+                                            th:data-product-name="${product.name}"
+                                            th:data-current-stock="${product.stock}">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
                                 </td>
                                 <td th:text="${product.category}">카테고리</td>
                                 <td>
@@ -178,6 +185,84 @@
     <!-- 페이지별 스크립트 -->
     <th:block layout:fragment="scripts">
         <script th:src="@{/js/admin/product.js}"></script>
+        
+        <!-- 재고 수정 모달 -->
+        <div class="modal fade" id="editStockModal" tabindex="-1" aria-labelledby="editStockModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editStockModalLabel">재고 수정</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>상품 "<span id="editStockProductName"></span>"의 재고를 수정합니다.</p>
+                        <div class="mb-3">
+                            <label for="stockInput" class="form-label">재고 수량</label>
+                            <input type="number" class="form-control" id="stockInput" min="0" max="1000">
+                            <div class="form-text">0 이상의 수량을 입력하세요.</div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                        <button type="button" class="btn btn-primary" id="saveStockBtn">저장</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <script th:inline="javascript">
+            let currentProductId = null;
+            const stockModal = new bootstrap.Modal(document.getElementById('editStockModal'));
+            
+            function editStock(button) {
+                const productId = button.getAttribute('data-product-id');
+                const productName = button.getAttribute('data-product-name');
+                const currentStock = button.getAttribute('data-current-stock');
+                
+                currentProductId = productId;
+                document.getElementById('editStockProductName').textContent = productName;
+                document.getElementById('stockInput').value = currentStock;
+                
+                stockModal.show();
+            }
+            
+            document.getElementById('saveStockBtn').addEventListener('click', function() {
+                if (!currentProductId) return;
+                
+                const stockInput = document.getElementById('stockInput');
+                const newStock = parseInt(stockInput.value);
+                
+                if (isNaN(newStock) || newStock < 0) {
+                    alert('유효한 재고 수량을 입력하세요 (0 이상)');
+                    return;
+                }
+                
+                // AJAX 요청으로 재고 업데이트
+                fetch(`/admin/products/${currentProductId}/stock`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `stock=${newStock}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // 성공 시 페이지 새로고침
+                        location.reload();
+                    } else {
+                        alert('재고 업데이트 실패: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('재고 업데이트 중 오류가 발생했습니다.');
+                })
+                .finally(() => {
+                    stockModal.hide();
+                });
+            });
+        </script>
     </th:block>
 </body>
 </html> 

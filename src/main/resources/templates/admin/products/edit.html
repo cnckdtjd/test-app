@@ -60,8 +60,9 @@
                         <label for="price" class="form-label">가격 (원) <span class="text-danger">*</span></label>
                         <div class="input-group">
                             <span class="input-group-text">₩</span>
-                            <input type="number" class="form-control" id="price" th:field="*{price}" required min="0" step="100">
+                            <input type="number" class="form-control" id="price" th:field="*{price}" required min="0" step="100" pattern="[0-9]*" onchange="this.value=Math.floor(this.value)">
                         </div>
+                        <div class="form-text">100원 단위로 입력하세요. 소수점은 자동으로 제거됩니다.</div>
                         <div class="invalid-feedback" th:if="${#fields.hasErrors('price')}" th:errors="*{price}">
                             가격을 입력해주세요.
                         </div>
@@ -252,6 +253,22 @@
                         
                         form.classList.add('was-validated');
                     }, false);
+                });
+                
+                // 가격 필드에서 소수점 제거
+                document.addEventListener('DOMContentLoaded', function() {
+                    const priceInput = document.getElementById('price');
+                    if (priceInput) {
+                        // 페이지 로드 시 소수점 제거
+                        priceInput.value = Math.floor(priceInput.value);
+                        
+                        // 입력 시 소수점 제거
+                        priceInput.addEventListener('input', function() {
+                            if (this.value.includes('.')) {
+                                this.value = Math.floor(this.value);
+                            }
+                        });
+                    }
                 });
             })();
         </script>
