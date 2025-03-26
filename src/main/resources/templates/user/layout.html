@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title layout:title-pattern="$LAYOUT_TITLE | $CONTENT_TITLE">유저 대시보드</title>
+    
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- Custom styles -->
+    <link rel="stylesheet" th:href="@{/css/user/user.css}">
+    
+    <!-- 추가 스타일 -->
+    <style>
+
+    </style>
+    
+    <!-- 추가 스타일 영역 -->
+    <th:block layout:fragment="styles"></th:block>
+</head>
+<body>
+
+    <!-- 사이드바 및 메인 콘텐츠 영역 -->
+    <div class="container-fluid">
+        <div class="row">
+            <!-- 사이드바 네비게이션 -->
+            <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block sidebar">
+                <div class="sidebar-sticky">
+                    <div class="user-dropdown">
+                        <div class="d-flex align-items-center justify-content-center mb-2">
+                            <i class="bi bi-person-circle fs-4 me-2 text-white"></i>
+                            <span class="text-white fw-bold" sec:authentication="name">user</span>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- 메인 컨텐츠 영역 -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
+                <!-- 알림 메시지 -->
+                <div class="alert alert-success" th:if="${successMessage}" role="alert">
+                    <i class="bi bi-check-circle-fill me-2"></i> <span th:text="${successMessage}">작업이 성공적으로 완료되었습니다.</span>
+                </div>
+                
+                <div class="alert alert-danger" th:if="${errorMessage}" role="alert">
+                    <i class="bi bi-exclamation-circle-fill me-2"></i> <span th:text="${errorMessage}">오류가 발생했습니다.</span>
+                </div>
+                
+                <!-- 실제 컨텐츠가 들어갈 영역 -->
+                <section layout:fragment="content">
+                    <p>메인 컨텐츠 영역입니다.</p>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- JavaScript 라이브러리 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- 관리자 공통 자바스크립트 -->
+    <script th:src="@{/js/user/user.js}"></script>
+    
+    <!-- 페이지별 자바스크립트 -->
+    <th:block layout:fragment="scripts"></th:block>
+</body>
+</html> 

@@ -4,6 +4,8 @@ import com.jacob.testapp.product.entity.Product;
 import com.jacob.testapp.product.repository.ProductRepository;
 import com.jacob.testapp.user.entity.User;
 import com.jacob.testapp.user.repository.UserRepository;
+import com.jacob.testapp.cart.entity.Cart;
+import com.jacob.testapp.cart.repository.CartRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -36,6 +38,7 @@ public class TestDataService {
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
     private final PasswordEncoder passwordEncoder;
+    private final CartRepository cartRepository;
     private final Random random = new Random();
     
     // EntityManager 주입
@@ -107,10 +110,12 @@ public class TestDataService {
     public TestDataService(
             UserRepository userRepository, 
             ProductRepository productRepository, 
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder,
+            CartRepository cartRepository) {
         this.userRepository = userRepository;
         this.productRepository = productRepository;
         this.passwordEncoder = passwordEncoder;
+        this.cartRepository = cartRepository;
     }
 
     /**
@@ -196,7 +201,25 @@ public class TestDataService {
                                 String username = firstName + lastName + String.format("%04d", i);
                                 // 이메일은 모두 소문자로 구성
                                 String email = username.toLowerCase() + "@example.com";
-                                String password = passwordEncoder.encode("password" + i);
+
+                                // *** UserService.register 메소드의 중복 체크 로직 통합 ***
+                                // 사용자명 중복 체크
+                                if (userRepository.existsByUsername(username)) {
+                                    logger.warn("중복된 사용자명 발견: {}", username);
+                                    // 접미사에 랜덤 숫자 추가하여 고유하게 만듦
+                                    username = username + "_" + localRandom.nextInt(1000);
+                                }
+
+                                // 이메일 중복 체크
+                                if (userRepository.existsByEmail(email)) {
+                                    logger.warn("중복된 이메일 발견: {}", email);
+                                    // 사용자명에 랜덤 접미사 추가
+                                    email = username.toLowerCase() + "_" + localRandom.nextInt(1000) + "@example.com";
+                                }
+
+                                // *** UserService.register와 일치하도록 패스워드 암호화 로직 수정 ***
+                                // 테스트 사용자는 항상 password123으로 로그인할 수 있도록 고정 비밀번호 사용
+                                String password = passwordEncoder.encode("test");
 
                                 User user = User.builder()
                                         .username(username)
@@ -204,27 +227,30 @@ public class TestDataService {
                                         .password(password)
                                         .name(firstName + " " + lastName) // 실제 이름은 띄어쓰기로 구분
                                         .phone("010-1234-" + String.format("%04d", i))
-                                        .role(User.Role.ROLE_USER)
-                                        .status(User.Status.ACTIVE)
-                                        .loginAttempts(0)
-                                        .enabled(true)
-                                        .accountLocked(false)
+                                        .role(User.Role.ROLE_USER) // UserService.register와 일치
+                                        .status(User.Status.ACTIVE) // UserService.register와 일치
+                                        .loginAttempts(0) // UserService.register와 일치
+                                        .enabled(true) // UserService.register와 일치
+                                        .accountLocked(false) // UserService.register와 일치
                                         .remarks(TEST_USER_FLAG) // 테스트 사용자 식별용 플래그
-                                        .lastLoginAt(LocalDateTime.now().minusDays(localRandom.nextInt(30)))
-                                        .createdAt(LocalDateTime.now().minusDays(localRandom.nextInt(30)))
+                                        .lastLoginAt(LocalDateTime.now())
+                                        .createdAt(LocalDateTime.now())
                                         .build();
 
-                                userBatch.add(user);
+                                userRepository.save(user);
+
+                                // 사용자의 장바구니 생성
+                                Cart cart = Cart.builder()
+                                        .user(user)
+                                        .totalPrice(BigDecimal.ZERO)
+                                        .build();
+                                cartRepository.save(cart);
+
                                 successCount.incrementAndGet();
                             } catch (Exception e) {
                                 logger.error("사용자 생성 중 오류 발생 (인덱스: {}): {}", i, e.getMessage());
                                 failCount.incrementAndGet();
                             }
-                        }
-                        
-                        // 트랜잭션 내에서 배치 저장
-                        if (!userBatch.isEmpty()) {
-                            saveUserBatch(userBatch);
                         }
                     });
                 }).get(); // 작업 완료 대기
@@ -284,7 +310,7 @@ public class TestDataService {
                                         .status(localRandom.nextDouble() < 0.9 ? Product.Status.ACTIVE : Product.Status.INACTIVE)
                                         .remarks(TEST_USER_FLAG) // 테스트 상품 식별용 플래그
                                         .version(0L) // 낙관적 락을 위한 버전 필드 추가
-                                        .createdAt(LocalDateTime.now().minusDays(localRandom.nextInt(30)))
+                                        .createdAt(LocalDateTime.now())
                                         .build();
 
                                 productBatch.add(product);

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{user/layout}">
+<head>
+</head>
+<body>
+    <section layout:fragment="content">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>주문 관리</h2>
+            <div class="d-flex">
+                <button id="refreshOrdersBtn" class="btn btn-primary">
+                    <i class="bi bi-arrow-clockwise"></i> 새로고침
+                </button>
+            </div>
+        </div>
+
+        <!-- 주문 목록 테이블 -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">주문 목록</h6>
+                <span class="text-muted">총 <span th:text="${orders.totalElements}">0</span>개의 주문</span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="ordersTable" width="100%" cellspacing="0">
+                        <thead>
+                            <tr>
+                                <th>주문번호</th>
+                                <th>주문자</th>
+                                <th>주문상품</th>
+                                <th>총 금액</th>
+                                <th>주문상태</th>
+                                <th>결제방법</th>
+                                <th>주문일시</th>
+                                <th>관리</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:each="order : ${orders}" th:id="'order-' + ${order.id}">
+                                <td>
+                                    <a th:href="@{'/admin/orders/' + ${order.id}}" th:text="${order.orderNumber}">ORD202403240001</a>
+                                </td>
+                                <td th:text="${order.user != null ? order.user.username : '비회원'}">사용자명</td>
+                                <td>
+                                    <span th:text="${order.items.size() > 0 ? order.items[0].product.name + (order.items.size() > 1 ? ' 외 ' + (order.items.size() - 1) + '건' : '') : '상품 없음'}">
+                                        상품명 외 1건
+                                    </span>
+                                </td>
+                                <td th:text="${#numbers.formatCurrency(order.totalAmount)}">50,000원</td>
+                                <td>
+                                    <span th:class="${'badge text-bg-' + 
+                                                    (order.status.name() == 'PENDING' ? 'warning' : 
+                                                     order.status.name() == 'PAID' ? 'info' : 
+                                                     order.status.name() == 'SHIPPING' ? 'primary' : 
+                                                     order.status.name() == 'COMPLETED' ? 'success' : 
+                                                     order.status.name() == 'CANCELLED' ? 'danger' : 'secondary')}" 
+                                          th:text="${order.status.displayName}">
+                                        결제대기
+                                    </span>
+                                </td>
+                                <td th:text="${order.paymentMethod}">신용카드</td>
+                                <td th:text="${#temporals.format(order.createdAt, 'yyyy-MM-dd HH:mm')}">2023-01-01 12:00</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm" role="group">
+                                        <a th:href="@{'/admin/orders/' + ${order.id}}" class="btn btn-primary">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr th:if="${orders.empty}">
+                                <td colspan="8" class="text-center py-4">
+                                    주문 내역이 없습니다.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- 페이지네이션 -->
+                <nav th:if="${orders.totalPages > 1}" aria-label="Page navigation">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item" th:classappend="${orders.first} ? 'disabled' : ''">
+                            <a class="page-link" th:href="@{/admin/orders(page=0, size=${orders.size}, status=${selectedStatus}, orderNumber=${param.orderNumber}, startDate=${param.startDate}, endDate=${param.endDate})}" aria-label="First">
+                                <span aria-hidden="true">&laquo;&laquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item" th:classappend="${orders.first} ? 'disabled' : ''">
+                            <a class="page-link" th:href="@{/admin/orders(page=${orders.number - 1}, size=${orders.size}, status=${selectedStatus}, orderNumber=${param.orderNumber}, startDate=${param.startDate}, endDate=${param.endDate})}" aria-label="Previous">
+                                <span aria-hidden="true">&laquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item" 
+                            th:each="i : ${#numbers.sequence(orders.number - 2 <= 0 ? 0 : orders.number - 2, orders.number + 2 >= orders.totalPages - 1 ? orders.totalPages - 1 : orders.number + 2)}"
+                            th:classappend="${i == orders.number} ? 'active' : ''">
+                            <a class="page-link" th:href="@{/admin/orders(page=${i}, size=${orders.size}, status=${selectedStatus}, orderNumber=${param.orderNumber}, startDate=${param.startDate}, endDate=${param.endDate})}" th:text="${i + 1}">1</a>
+                        </li>
+                        <li class="page-item" th:classappend="${orders.last} ? 'disabled' : ''">
+                            <a class="page-link" th:href="@{/admin/orders(page=${orders.number + 1}, size=${orders.size}, status=${selectedStatus}, orderNumber=${param.orderNumber}, startDate=${param.startDate}, endDate=${param.endDate})}" aria-label="Next">
+                                <span aria-hidden="true">&raquo;</span>
+                            </a>
+                        </li>
+                        <li class="page-item" th:classappend="${orders.last} ? 'disabled' : ''">
+                            <a class="page-link" th:href="@{/admin/orders(page=${orders.totalPages - 1}, size=${orders.size}, status=${selectedStatus}, orderNumber=${param.orderNumber}, startDate=${param.startDate}, endDate=${param.endDate})}" aria-label="Last">
+                                <span aria-hidden="true">&raquo;&raquo;</span>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </section>
+
+    <!-- 페이지별 스크립트 -->
+    <th:block layout:fragment="scripts">
+        <script th:src="@{/js/admin/order.js}"></script>
+    </th:block>
+</body>
+</html> 

@@ -47,7 +47,8 @@ public class CartService {
     // 장바구니 생성 또는 가져오기
     @Transactional
     public Cart getOrCreateCart(User user) {
-        return cartRepository.findByUserIdWithItems(user.getId())
+        // 장바구니가 있는지 단순 조회(JOIN 없이)
+        return cartRepository.findByUserIdNoItems(user.getId())
                 .orElseGet(() -> {
                     Cart cart = Cart.builder()
                             .user(user)

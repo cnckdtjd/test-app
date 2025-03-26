@@ -88,16 +88,18 @@ public class User {
     @Column(nullable = false)
     private Status status;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private LocalDateTime lastLoginAt;
 
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
+        lastLoginAt = createdAt;
     }
 
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
+        lastLoginAt = updatedAt;
     }
 } 
