@@ -71,7 +71,7 @@ public class Product {
     }
 
     public enum Category {
-        전자제품, 의류, 식품, 도서, 가구, 주방용품, 화장품, 스포츠용품, 완구, 문구
+        프로그래밍, 데이터베이스, 네트워크, 운영체제, 인공지능, 모바일, UI_UX, DevOps, IoT, IT비즈니스, 네트워크_보안, 인공지능_데이터과학, 시스템_운영, 모바일_개발, IoT_혁신기술
     }
 
     public enum Status {

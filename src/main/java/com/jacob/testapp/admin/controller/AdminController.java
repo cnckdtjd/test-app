@@ -385,6 +385,41 @@ public class AdminController {
         }
     }
 
+    /**
+     * 상품 재고 업데이트 API
+     */
+    @PostMapping("/products/{id}/stock")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> updateProductStock(
+            @PathVariable Long id,
+            @RequestParam int stock) {
+        log.info("상품 재고 업데이트 요청: ID = {}, 재고 = {}", id, stock);
+
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            if (stock < 0) {
+                response.put("success", false);
+                response.put("message", "재고는 0 이상이어야 합니다.");
+                return ResponseEntity.badRequest().body(response);
+            }
+
+            Product product = productService.findById(id);
+            product.setStock(stock);
+            productAdminService.saveProduct(product);
+
+            response.put("success", true);
+            response.put("message", "재고가 성공적으로 업데이트되었습니다.");
+            response.put("newStock", stock);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("상품 재고 업데이트 중 오류 발생: ID = {}", id, e);
+            response.put("success", false);
+            response.put("message", "재고 업데이트 중 오류가 발생했습니다: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(response);
+        }
+    }
+
     // 주문 관리 - 개선된 버전
     @GetMapping("/orders")
     public String listOrders(
