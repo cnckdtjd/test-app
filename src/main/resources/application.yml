@@ -5,8 +5,8 @@ spring:
     allow-circular-references: true
   datasource:
     url: jdbc:mariadb://localhost:3306/testapp
-    username: root
-    password: password
+    username: ck
+    password: "0527"
     driver-class-name: org.mariadb.jdbc.Driver
   jpa:
     hibernate:

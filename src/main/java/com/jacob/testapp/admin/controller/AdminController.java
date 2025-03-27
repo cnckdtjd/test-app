@@ -177,6 +177,72 @@ public class AdminController {
     }
     
     /**
+     * 사용자 현금 잔액 업데이트
+     */
+    @PostMapping("/users/{id}/update-balance")
+    public String updateUserBalance(
+            @PathVariable Long id, 
+            @RequestParam Long cashBalance,
+            RedirectAttributes redirectAttributes) {
+        try {
+            User user = userService.findById(id);
+            user.setCashBalance(cashBalance);
+            userService.save(user);
+            redirectAttributes.addFlashAttribute("successMessage", "현금 잔액이 " + cashBalance + "원으로 변경되었습니다.");
+        } catch (Exception e) {
+            log.error("사용자 잔액 업데이트 중 오류 발생: {}", e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("errorMessage", "현금 잔액 업데이트 중 오류가 발생했습니다.");
+        }
+        return "redirect:/admin/users/" + id;
+    }
+    
+    /**
+     * 사용자 현금 잔액 충전
+     */
+    @PostMapping("/users/{id}/add-balance")
+    public String addUserBalance(
+            @PathVariable Long id, 
+            @RequestParam Long amount,
+            RedirectAttributes redirectAttributes) {
+        try {
+            User user = userService.findById(id);
+            Long newBalance = user.getCashBalance() + amount;
+            user.setCashBalance(newBalance);
+            userService.save(user);
+            redirectAttributes.addFlashAttribute("successMessage", amount + "원이 충전되었습니다. 현재 잔액: " + newBalance + "원");
+        } catch (Exception e) {
+            log.error("사용자 잔액 충전 중 오류 발생: {}", e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("errorMessage", "현금 잔액 충전 중 오류가 발생했습니다.");
+        }
+        return "redirect:/admin/users/" + id;
+    }
+    
+    /**
+     * 사용자 현금 잔액 차감
+     */
+    @PostMapping("/users/{id}/subtract-balance")
+    public String subtractUserBalance(
+            @PathVariable Long id, 
+            @RequestParam Long amount,
+            RedirectAttributes redirectAttributes) {
+        try {
+            User user = userService.findById(id);
+            if (user.getCashBalance() < amount) {
+                redirectAttributes.addFlashAttribute("errorMessage", "차감하려는 금액(" + amount + "원)이 현재 잔액(" + user.getCashBalance() + "원)보다 큽니다.");
+            } else {
+                Long newBalance = user.getCashBalance() - amount;
+                user.setCashBalance(newBalance);
+                userService.save(user);
+                redirectAttributes.addFlashAttribute("successMessage", amount + "원이 차감되었습니다. 현재 잔액: " + newBalance + "원");
+            }
+        } catch (Exception e) {
+            log.error("사용자 잔액 차감 중 오류 발생: {}", e.getMessage(), e);
+            redirectAttributes.addFlashAttribute("errorMessage", "현금 잔액 차감 중 오류가 발생했습니다.");
+        }
+        return "redirect:/admin/users/" + id;
+    }
+    
+    /**
      * 사용자 목록 CSV 내보내기
      */
     @GetMapping("/users/export")

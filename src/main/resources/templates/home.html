@@ -46,6 +46,12 @@
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
                             <li><a class="dropdown-item" th:href="@{/users/profile}">프로필</a></li>
                             <li><a class="dropdown-item" th:href="@{/orders}">주문 내역</a></li>
+                            <li th:if="${user != null && user.cashBalance != null}">
+                                <div class="dropdown-item d-flex justify-content-between align-items-center">
+                                    <span>현금 잔액:</span>
+                                    <span class="badge bg-success rounded-pill ms-2" th:text="${#numbers.formatCurrency(user.cashBalance)}">0원</span>
+                                </div>
+                            </li>
                             <li><hr class="dropdown-divider"></li>
                             <li>
                                 <form th:action="@{/logout}" method="post">
@@ -77,6 +83,7 @@
                         <hr>
                         <p class="mb-1"><strong>이름:</strong> <span th:text="${user.name}">사용자</span></p>
                         <p class="mb-1"><strong>이메일:</strong> <span th:text="${user.email}">user@example.com</span></p>
+                        <p class="mb-1"><strong>현금 잔액:</strong> <span th:text="${#numbers.formatCurrency(user.cashBalance)}">0원</span></p>
                         <p class="mb-0"><strong>가입일:</strong> <span th:text="${#temporals.format(user.createdAt, 'yyyy-MM-dd')}">2023-01-01</span></p>
                         <div class="d-grid gap-2 mt-3">
                             <a th:href="@{/users/profile}" class="btn btn-sm btn-outline-primary">프로필 관리</a>
@@ -118,26 +125,51 @@
         <!-- 최신 상품 목록 -->
         <div class="row">
             <div class="col-12 mb-4">
-                <h3 class="border-bottom pb-2">최신 상품</h3>
+                <h3 class="border-bottom pb-2 d-flex align-items-center">
+                    <i class="bi bi-stars text-warning me-2"></i>최신 상품
+                    <span class="ms-2 badge bg-danger rounded-pill fs-6">NEW</span>
+                </h3>
             </div>
             
             <div class="col-md-3 mb-4" th:each="product : ${latestProducts}">
-                <div class="card h-100 product-card">
-                    <div class="card-body d-flex flex-column">
-                        <h5 class="card-title" th:text="${product.name}">상품명</h5>
-                        <p class="card-text text-muted small mb-2" th:text="${product.category}">카테고리</p>
-                        <p class="card-text flex-grow-1" th:text="${#strings.abbreviate(product.description, 80)}">설명</p>
-                        <div class="d-flex justify-content-between align-items-center mt-3">
-                            <p class="price mb-0" th:text="${#numbers.formatCurrency(product.price)}">가격</p>
-                            <div class="btn-group">
-                                <a th:href="@{/products/{id}(id=${product.id})}" class="btn btn-sm btn-outline-primary">상세보기</a>
-                                <form th:action="@{/cart/add}" method="post" sec:authorize="isAuthenticated()">
-                                    <input type="hidden" name="productId" th:value="${product.id}">
-                                    <input type="hidden" name="quantity" value="1">
-                                    <button type="submit" class="btn btn-sm btn-primary ms-1">
-                                        <i class="bi bi-cart-plus"></i>
-                                    </button>
-                                </form>
+                <div class="card h-100 product-card rounded-3 border-0 shadow-sm hover-scale">
+                    <div class="position-relative product-img-container bg-light rounded-top text-center">
+                        <!-- 상품 이미지 추가 -->
+                        <img th:if="${product.imageUrl != null}" th:src="${product.imageUrl}" alt="상품 이미지" class="product-img">
+                        <img th:unless="${product.imageUrl != null}" src="/images/default-product.jpg" alt="기본 상품 이미지" class="product-img">
+                        <span class="position-absolute top-0 end-0 m-2 badge bg-success">NEW</span>
+                    </div>
+                    <div class="card-body d-flex flex-column p-3">
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                            <h5 class="card-title mb-0 product-name" th:text="${product.name}">상품명</h5>
+                            <span class="badge rounded-pill" th:text="${product.category}" 
+                                  th:classappend="${#strings.equals(product.category, '전자기기') ? 'bg-info' : 
+                                                   #strings.equals(product.category, '식품') ? 'bg-success' : 
+                                                   #strings.equals(product.category, '의류') ? 'bg-warning' : 'bg-secondary'}">
+                                카테고리
+                            </span>
+                        </div>
+                        <p class="card-text small text-muted mb-2" th:text="${#strings.abbreviate(product.description, 60)}">설명</p>
+                        
+                        <!-- 가격 및 버튼 영역 개선 -->
+                        <div class="mt-auto">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <p class="price mb-0 fw-bold fs-5 text-primary" th:text="${#numbers.formatCurrency(product.price)}">가격</p>
+                                <span class="stock-badge badge bg-success">재고있음</span>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <div class="d-flex gap-2">
+                                    <a th:href="@{/products/{id}(id=${product.id})}" class="btn btn-outline-primary flex-grow-1">
+                                        <i class="bi bi-eye-fill"></i> 상세보기
+                                    </a>
+                                    <form th:action="@{/cart/add}" method="post" sec:authorize="isAuthenticated()" class="cart-form">
+                                        <input type="hidden" name="productId" th:value="${product.id}">
+                                        <input type="hidden" name="quantity" value="1">
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="bi bi-cart-plus"></i>
+                                        </button>
+                                    </form>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -145,6 +177,38 @@
             </div>
         </div>
     </div>
+    
+    <!-- CSS 스타일 추가 -->
+    <style>
+        .hover-scale {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .hover-scale:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+        }
+        .product-img-container {
+            height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .product-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .product-name {
+            font-weight: 600;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .cart-form {
+            flex-shrink: 0;
+        }
+    </style>
     
     <footer class="bg-dark text-white py-4 mt-5">
         <div class="container">

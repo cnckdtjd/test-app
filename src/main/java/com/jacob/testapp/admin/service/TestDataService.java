@@ -291,6 +291,9 @@ public class TestDataService {
                                 // 테스트 사용자는 항상 password123으로 로그인할 수 있도록 고정 비밀번호 사용
                                 String password = passwordEncoder.encode("test");
 
+                                // 현금 잔액을 5만원에서 20만원 사이로 랜덤하게 설정 (100원 단위 절삭)
+                                Long cashBalance = generateRandomCashBalance(localRandom);
+
                                 User user = User.builder()
                                         .username(username)
                                         .email(email)
@@ -302,6 +305,7 @@ public class TestDataService {
                                         .loginAttempts(0) // UserService.register와 일치
                                         .enabled(true) // UserService.register와 일치
                                         .accountLocked(false) // UserService.register와 일치
+                                        .cashBalance(cashBalance) // 현금 잔액 설정
                                         .remarks(TEST_USER_FLAG) // 테스트 사용자 식별용 플래그
                                         .lastLoginAt(LocalDateTime.now())
                                         .createdAt(LocalDateTime.now())
@@ -373,8 +377,8 @@ public class TestDataService {
                                 String randomDescription = DESCRIPTIONS[localRandom.nextInt(DESCRIPTIONS.length)];
                                 String imageUrl = imageUrls.get(localRandom.nextInt(imageUrls.size()));
 
-                                BigDecimal price = new BigDecimal((1000 + localRandom.nextInt(1000) * 100))
-                                        .setScale(0, java.math.RoundingMode.DOWN);
+                                // 가격을 10,000~50,000원 사이로 제한하고 100원 단위로 절삭
+                                BigDecimal price = generateRandomPrice(localRandom);
                                 int stock = localRandom.nextInt(31);
 
                                 Product product = Product.builder()
@@ -621,5 +625,26 @@ public class TestDataService {
             Product.Category[] categories = Product.Category.values();
             return categories[ThreadLocalRandom.current().nextInt(categories.length)];
         }
+    }
+
+    /**
+     * 50,000원 ~ 200,000원 사이의 랜덤 현금 잔액 생성 (100원 단위로 절삭)
+     */
+    private Long generateRandomCashBalance(ThreadLocalRandom random) {
+        // 50,000원에서 200,000원 사이의 랜덤 값 생성
+        int randomAmount = 50000 + random.nextInt(150001);
+        // 100원 단위로 절삭
+        return (long) (randomAmount / 100) * 100;
+    }
+
+    /**
+     * 10,000원 ~ 50,000원 사이의 랜덤 가격 생성 (100원 단위로 절삭)
+     */
+    private BigDecimal generateRandomPrice(ThreadLocalRandom random) {
+        // 10,000원에서 50,000원 사이의 랜덤 값 생성
+        int randomAmount = 10000 + random.nextInt(40001);
+        // 100원 단위로 절삭
+        int truncatedAmount = (randomAmount / 100) * 100;
+        return new BigDecimal(truncatedAmount).setScale(0, java.math.RoundingMode.DOWN);
     }
 } 

@@ -74,6 +74,12 @@
                             </li>
                             <li class="list-group-item">
                                 <div class="row">
+                                    <div class="col-5 fw-bold">현금 잔액</div>
+                                    <div class="col-7 fw-bold text-success" th:text="${user.cashBalance != null ? #numbers.formatCurrency(user.cashBalance) : '0원'}">0원</div>
+                                </div>
+                            </li>
+                            <li class="list-group-item">
+                                <div class="row">
                                     <div class="col-5 fw-bold">가입일</div>
                                     <div class="col-7" th:text="${#temporals.format(user.createdAt, 'yyyy-MM-dd HH:mm')}">2023-01-01 00:00</div>
                                 </div>
@@ -130,6 +136,66 @@
                             <li>잠금 해제 시, 로그인 실패 카운트가 초기화됩니다.</li>
                             <li>관리자 계정에 대한 잠금은 신중히 처리해야 합니다.</li>
                         </ul>
+                    </div>
+                </div>
+                
+                <!-- 현금 잔액 관리 -->
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">현금 잔액 관리</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <p>현재 잔액: <strong class="text-success" th:text="${user.cashBalance != null ? #numbers.formatCurrency(user.cashBalance) : '0원'}">0원</strong></p>
+                        </div>
+                        
+                        <form th:action="@{/admin/users/{id}/update-balance(id=${user.id})}" method="post" class="mb-4">
+                            <div class="row g-3 align-items-center">
+                                <div class="col-md-6">
+                                    <label for="cashBalance" class="form-label">새 잔액 설정</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">₩</span>
+                                        <input type="number" id="cashBalance" name="cashBalance" class="form-control" 
+                                               th:value="${user.cashBalance}" min="0" step="1000" required>
+                                        <button type="submit" class="btn btn-primary">
+                                            <i class="bi bi-check-circle"></i> 변경
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                        
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <form th:action="@{/admin/users/{id}/add-balance(id=${user.id})}" method="post">
+                                    <label class="form-label">잔액 충전</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">₩</span>
+                                        <input type="number" name="amount" class="form-control" value="10000" min="1000" step="1000" required>
+                                        <button type="submit" class="btn btn-success">
+                                            <i class="bi bi-plus-circle"></i> 충전
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="col-md-6">
+                                <form th:action="@{/admin/users/{id}/subtract-balance(id=${user.id})}" method="post">
+                                    <label class="form-label">잔액 차감</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">₩</span>
+                                        <input type="number" name="amount" class="form-control" value="10000" min="1000" step="1000" required>
+                                        <button type="submit" class="btn btn-danger">
+                                            <i class="bi bi-dash-circle"></i> 차감
+                                        </button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle-fill me-2"></i>
+                            <strong>주의사항:</strong> 현금 잔액 변경은 사용자의 구매 능력에 직접적인 영향을 미칩니다. 모든 잔액 변경 내역은 시스템에 기록됩니다.
+                        </div>
                     </div>
                 </div>
                 

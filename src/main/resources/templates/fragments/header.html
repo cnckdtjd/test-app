@@ -40,6 +40,12 @@
                             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
                                 <li><a class="dropdown-item" th:href="@{/users/profile}">Profile</a></li>
                                 <li><a class="dropdown-item" th:href="@{/orders}">My Orders</a></li>
+                                <li th:if="${user != null && user.cashBalance != null}">
+                                    <div class="dropdown-item d-flex justify-content-between">
+                                        <span>현금 잔액:</span>
+                                        <span class="fw-bold text-primary" th:text="${#numbers.formatCurrency(user.cashBalance)}">0원</span>
+                                    </div>
+                                </li>
                                 <li>
                                     <hr class="dropdown-divider">
                                 </li>

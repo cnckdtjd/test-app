@@ -70,14 +70,17 @@
             <!-- 필터 및 검색 영역 -->
             <div class="col-md-3 mb-4">
                 <div class="card border-0 shadow-sm">
-                    <div class="card-header bg-white py-3">
-                        <h5 class="mb-0">필터</h5>
+                    <div class="card-header bg-primary text-white py-3">
+                        <h5 class="mb-0"><i class="bi bi-funnel me-2"></i>필터</h5>
                     </div>
                     <div class="card-body">
-                        <form th:action="@{/products}" method="get">
+                        <form th:action="@{/products}" method="get" id="filterForm">
                             <div class="mb-3">
                                 <label for="name" class="form-label">검색어</label>
-                                <input type="text" class="form-control" id="name" name="name" th:value="${searchName}">
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                                    <input type="text" class="form-control" id="name" name="name" th:value="${searchName}" placeholder="상품명 검색...">
+                                </div>
                             </div>
                             <div class="mb-3">
                                 <label for="category" class="form-label">카테고리</label>
@@ -89,8 +92,21 @@
                                             th:selected="${cat == selectedCategory}">카테고리</option>
                                 </select>
                             </div>
+                            <!-- 가격 범위 필터 추가 -->
+                            <div class="mb-3">
+                                <label class="form-label">가격 범위</label>
+                                <div class="row g-2">
+                                    <div class="col">
+                                        <input type="number" class="form-control" name="minPrice" placeholder="최소 가격" th:value="${param.minPrice}">
+                                    </div>
+                                    <div class="col">
+                                        <input type="number" class="form-control" name="maxPrice" placeholder="최대 가격" th:value="${param.maxPrice}">
+                                    </div>
+                                </div>
+                            </div>
                             <div class="d-grid">
                                 <button type="submit" class="btn btn-primary">검색</button>
+                                <button type="reset" class="btn btn-outline-secondary mt-2">초기화</button>
                             </div>
                         </form>
                     </div>
@@ -100,37 +116,122 @@
             <!-- 상품 목록 영역 -->
             <div class="col-md-9">
                 <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h2>상품 목록</h2>
-                    <div>
-                        <span class="text-muted">총 <span th:text="${products.totalElements}">0</span>개 상품</span>
+                    <h2><i class="bi bi-box-seam me-2 text-primary"></i>상품 목록</h2>
+                    <div class="d-flex align-items-center">
+                        <span class="text-muted me-3">총 <span th:text="${products.totalElements}" class="fw-bold text-primary">0</span>개 상품</span>
+                        
+                        <!-- 뷰 전환 버튼 -->
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-primary active" id="gridViewBtn">
+                                <i class="bi bi-grid"></i>
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" id="listViewBtn">
+                                <i class="bi bi-list-ul"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
                 <!-- 상품이 없는 경우 -->
-                <div class="alert alert-info" th:if="${products.empty}">
-                    <i class="bi bi-info-circle me-2"></i>조건에 맞는 상품이 없습니다.
+                <div class="alert alert-info d-flex align-items-center" th:if="${products.empty}">
+                    <i class="bi bi-info-circle fs-4 me-3"></i>
+                    <div>조건에 맞는 상품이 없습니다. 다른 검색어나 필터 조건을 시도해보세요.</div>
                 </div>
                 
-                <!-- 상품 목록 -->
-                <div class="row">
+                <!-- 상품 목록 (그리드 뷰) -->
+                <div class="row product-grid" id="gridView">
                     <div class="col-md-4 mb-4" th:each="product : ${products}">
-                        <div class="card h-100 product-card">
-                            <div class="card-body d-flex flex-column">
-                                <h5 class="card-title" th:text="${product.name}">상품명</h5>
-                                <p class="card-text text-muted small mb-2" th:text="${product.category}">카테고리</p>
-                                <p class="card-text flex-grow-1" th:text="${#strings.abbreviate(product.description, 80)}">설명</p>
-                                <div class="d-flex justify-content-between align-items-center mt-3">
-                                    <p class="price mb-0" th:text="${#numbers.formatCurrency(product.price)}">가격</p>
-                                    <div class="btn-group">
-                                        <a th:href="@{/products/{id}(id=${product.id})}" class="btn btn-sm btn-outline-primary">상세보기</a>
-                                        <form th:action="@{/cart/add}" method="post" sec:authorize="isAuthenticated()">
-                                            <input type="hidden" name="productId" th:value="${product.id}">
-                                            <input type="hidden" name="quantity" value="1">
-                                            <button type="submit" class="btn btn-sm btn-primary ms-1">
-                                                <i class="bi bi-cart-plus"></i>
-                                            </button>
-                                        </form>
+                        <div class="card h-100 product-card border-0 shadow-sm hover-scale">
+                            <div class="position-relative product-img-container bg-light rounded-top text-center">
+                                <!-- 상품 이미지 표시 -->
+                                <img th:if="${product.imageUrl != null}" th:src="${product.imageUrl}" alt="상품 이미지" class="product-img">
+                                <img th:unless="${product.imageUrl != null}" src="/images/default-product.jpg" alt="기본 상품 이미지" class="product-img">
+                                <span class="position-absolute top-0 end-0 m-2 badge"
+                                    th:classappend="${product.stock < 10 ? 'bg-danger' : 'bg-success'}"
+                                    th:text="${product.stock < 10 ? '품절임박' : '재고있음'}">재고</span>
+                            </div>
+                            <div class="card-body d-flex flex-column p-3">
+                                <div class="d-flex justify-content-between align-items-start mb-1">
+                                    <h5 class="card-title mb-0 product-name" th:text="${product.name}">상품명</h5>
+                                    <span class="badge rounded-pill" th:text="${product.category}" 
+                                        th:classappend="${#strings.equals(product.category, '전자기기') ? 'bg-info' : 
+                                                        #strings.equals(product.category, '식품') ? 'bg-success' : 
+                                                        #strings.equals(product.category, '의류') ? 'bg-warning' : 'bg-secondary'}">
+                                        카테고리
+                                    </span>
+                                </div>
+                                <p class="card-text small text-muted mb-2" th:text="${#strings.abbreviate(product.description, 60)}">설명</p>
+                                
+                                <!-- 가격 및 버튼 영역 개선 -->
+                                <div class="mt-auto">
+                                    <div class="d-flex align-items-center justify-content-between mb-2">
+                                        <p class="price mb-0 fw-bold fs-5 text-primary" th:text="${#numbers.formatCurrency(product.price)}">가격</p>
+                                        <span class="stock-badge badge" 
+                                              th:classappend="${product.stock < 10 ? 'bg-danger' : 'bg-success'}"
+                                              th:text="${product.stock < 10 ? '품절임박' : '재고있음'}">
+                                        </span>
                                     </div>
+                                    <div class="d-grid gap-2">
+                                        <div class="d-flex gap-2">
+                                            <a th:href="@{/products/{id}(id=${product.id})}" class="btn btn-outline-primary flex-grow-1">
+                                                <i class="bi bi-eye-fill"></i> 상세보기
+                                            </a>
+                                            <form th:action="@{/cart/add}" method="post" sec:authorize="isAuthenticated()" class="cart-form">
+                                                <input type="hidden" name="productId" th:value="${product.id}">
+                                                <input type="hidden" name="quantity" value="1">
+                                                <button type="submit" class="btn btn-primary">
+                                                    <i class="bi bi-cart-plus"></i>
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 상품 목록 (리스트 뷰) - 기본적으로 숨김 -->
+                <div class="product-list d-none" id="listView">
+                    <div class="list-group">
+                        <div class="list-group-item list-group-item-action p-0 mb-2 border rounded-3 shadow-sm hover-light" th:each="product : ${products}">
+                            <div class="d-flex">
+                                <div class="product-img-container-list bg-light d-flex align-items-center justify-content-center">
+                                    <!-- 상품 이미지 표시 -->
+                                    <img th:if="${product.imageUrl != null}" th:src="${product.imageUrl}" alt="상품 이미지" class="product-img-list">
+                                    <img th:unless="${product.imageUrl != null}" src="/images/default-product.jpg" alt="기본 상품 이미지" class="product-img-list">
+                                </div>
+                                <div class="p-3 flex-grow-1 d-flex flex-column justify-content-between">
+                                    <div>
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h5 class="mb-0" th:text="${product.name}">상품명</h5>
+                                            <p class="price fw-bold fs-4 text-primary mb-0" th:text="${#numbers.formatCurrency(product.price)}">가격</p>
+                                        </div>
+                                        <div class="mb-2">
+                                            <span class="badge rounded-pill" th:text="${product.category}" 
+                                                th:classappend="${#strings.equals(product.category, '전자기기') ? 'bg-info' : 
+                                                                #strings.equals(product.category, '식품') ? 'bg-success' : 
+                                                                #strings.equals(product.category, '의류') ? 'bg-warning' : 'bg-secondary'}">
+                                                카테고리
+                                            </span>
+                                            <span class="badge ms-1"
+                                                th:classappend="${product.stock < 10 ? 'bg-danger' : 'bg-success'}"
+                                                th:text="${product.stock < 10 ? '품절임박' : '재고있음'}">재고</span>
+                                        </div>
+                                        <p class="text-muted mb-0" th:text="${#strings.abbreviate(product.description, 100)}">상품 설명...</p>
+                                    </div>
+                                </div>
+                                <div class="d-flex flex-column justify-content-center p-3 border-start action-buttons">
+                                    <a th:href="@{/products/{id}(id=${product.id})}" class="btn btn-outline-primary mb-2">
+                                        <i class="bi bi-eye-fill me-1"></i>상세보기
+                                    </a>
+                                    <form th:action="@{/cart/add}" method="post" sec:authorize="isAuthenticated()">
+                                        <input type="hidden" name="productId" th:value="${product.id}">
+                                        <input type="hidden" name="quantity" value="1">
+                                        <button type="submit" class="btn btn-primary w-100">
+                                            <i class="bi bi-cart-plus me-1"></i>담기
+                                        </button>
+                                    </form>
                                 </div>
                             </div>
                         </div>
@@ -162,6 +263,93 @@
             </div>
         </div>
     </div>
+    
+    <!-- CSS 스타일 추가 -->
+    <style>
+        .hover-scale {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .hover-scale:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+        }
+        .hover-light:hover {
+            background-color: #f8f9fa;
+        }
+        .product-img-container {
+            height: 180px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .product-img-container-list {
+            width: 120px;
+            height: 120px;
+            overflow: hidden;
+        }
+        .product-img, .product-img-list {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .product-name {
+            font-weight: 600;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .cart-form {
+            flex-shrink: 0;
+        }
+        .action-buttons {
+            min-width: 120px;
+        }
+    </style>
+    
+    <!-- 자바스크립트 추가 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const gridViewBtn = document.getElementById('gridViewBtn');
+            const listViewBtn = document.getElementById('listViewBtn');
+            const gridView = document.getElementById('gridView');
+            const listView = document.getElementById('listView');
+            
+            // 그리드 뷰 버튼 클릭 이벤트
+            gridViewBtn.addEventListener('click', function() {
+                gridView.classList.remove('d-none');
+                listView.classList.add('d-none');
+                gridViewBtn.classList.add('active');
+                listViewBtn.classList.remove('active');
+                localStorage.setItem('viewMode', 'grid');
+            });
+            
+            // 리스트 뷰 버튼 클릭 이벤트
+            listViewBtn.addEventListener('click', function() {
+                gridView.classList.add('d-none');
+                listView.classList.remove('d-none');
+                gridViewBtn.classList.remove('active');
+                listViewBtn.classList.add('active');
+                localStorage.setItem('viewMode', 'list');
+            });
+            
+            // 이전에 선택한 뷰 모드 복원
+            const savedViewMode = localStorage.getItem('viewMode');
+            if (savedViewMode === 'list') {
+                listViewBtn.click();
+            }
+            
+            // 폼 초기화 버튼 처리
+            document.querySelector('button[type="reset"]').addEventListener('click', function(e) {
+                e.preventDefault();
+                document.getElementById('name').value = '';
+                document.getElementById('category').value = '';
+                document.getElementsByName('minPrice')[0].value = '';
+                document.getElementsByName('maxPrice')[0].value = '';
+                document.getElementById('filterForm').submit();
+            });
+        });
+    </script>
     
     <footer class="bg-dark text-white py-4 mt-5">
         <div class="container">

@@ -77,10 +77,21 @@ public class DataInitializer implements CommandLineRunner {
                     .lastLoginAt(LocalDateTime.now())
                     .loginAttempts(0)
                     .accountLocked(false)
+                    .cashBalance(generateRandomCashBalance()) // 50,000원 ~ 200,000원 (100원 단위)
                     .build();
             userRepository.save(user);
             System.out.println("테스트 사용자 계정이 생성되었습니다: user/user");
         }
+    }
+
+    /**
+     * 50,000원 ~ 200,000원 사이의 랜덤 현금 잔액 생성 (100원 단위로 절삭)
+     */
+    private Long generateRandomCashBalance() {
+        // 50,000원에서 200,000원 사이의 랜덤 값 생성
+        int randomAmount = 50000 + random.nextInt(150001);
+        // 100원 단위로 절삭
+        return (long) (randomAmount / 100) * 100;
     }
 
     private void createSampleProducts() {
@@ -168,8 +179,8 @@ public class DataInitializer implements CommandLineRunner {
         for (int i = 1; i <= 100; i++) {
             String name = courseNames.get(random.nextInt(courseNames.size())) + " " + i;
             String description = DESCRIPTIONS[ThreadLocalRandom.current().nextInt(DESCRIPTIONS.length)];
-            // 가격을 100원 단위로 맞추고 소수점 제거
-            BigDecimal price = new BigDecimal(10000 + (random.nextInt(100) * 100));
+            // 가격을 10,000~50,000원 사이로 제한하고 100원 단위로 절삭
+            BigDecimal price = generateRandomPrice();
             // 재고를 30개 이하로 제한
             int stock = random.nextInt(31); // 0~30 사이의 랜덤 값
             String imageUrl = imageUrls.get(random.nextInt(imageUrls.size()));
@@ -192,6 +203,18 @@ public class DataInitializer implements CommandLineRunner {
         
         System.out.println("샘플 상품 생성이 완료되었습니다.");
     }
+
+    /**
+     * 10,000원 ~ 50,000원 사이의 랜덤 가격 생성 (100원 단위로 절삭)
+     */
+    private BigDecimal generateRandomPrice() {
+        // 10,000원에서 50,000원 사이의 랜덤 값 생성
+        int randomAmount = 10000 + random.nextInt(40001);
+        // 100원 단위로 절삭
+        int truncatedAmount = (randomAmount / 100) * 100;
+        return new BigDecimal(truncatedAmount);
+    }
+
     /**
      * 상품명 기반으로 적절한 카테고리 반환
      *

@@ -59,6 +59,9 @@ public class User {
     @Column(name = "lock_time")
     private LocalDateTime lockTime;
 
+    @Column(name = "cash_balance")
+    private Long cashBalance;
+
     @Column(length = 255)
     private String remarks;
 
