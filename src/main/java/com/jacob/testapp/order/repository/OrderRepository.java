@@ -66,6 +66,8 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     
     List<Order> findAllByOrderByCreatedAtDesc();
     
+    List<Order> findByUserOrderByCreatedAtDesc(User user);
+    
     @Query("SELECT SUM(o.totalAmount) FROM Order o")
     Double sumTotalAmount();
     
@@ -74,4 +76,26 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     
     @Query("SELECT o FROM Order o LEFT JOIN FETCH o.items LEFT JOIN FETCH o.history WHERE o.id = :id")
     Optional<Order> findByIdWithDetails(@Param("id") Long id);
+
+    // 삭제되지 않은 주문만 조회
+    Page<Order> findByUserAndStatusNot(User user, Order.OrderStatus status, Pageable pageable);
+
+    // 삭제되지 않은 주문을 생성일 기준 내림차순으로 정렬하여 조회
+    List<Order> findByUserAndStatusNotOrderByCreatedAtDesc(User user, Order.OrderStatus status);
+    
+    // 특정 상태가 아닌 주문 조회
+    Page<Order> findByStatusNot(Order.OrderStatus status, Pageable pageable);
+    
+    // 특정 상태가 아니고 특정 기간 내의 주문 조회
+    Page<Order> findByStatusNotAndCreatedAtBetween(Order.OrderStatus status, LocalDateTime startDate, LocalDateTime endDate, Pageable pageable);
+    
+    // 주문번호에 특정 문자열이 포함되고 특정 상태가 아닌 주문 조회
+    Page<Order> findByOrderNumberContainingAndStatusNot(String orderNumber, Order.OrderStatus status, Pageable pageable);
+    
+    // 주문번호에 특정 문자열이 포함되고 특정 상태가 아니며 특정 기간 내의 주문 조회
+    Page<Order> findByOrderNumberContainingAndStatusNotAndCreatedAtBetween(
+            String orderNumber, Order.OrderStatus status, LocalDateTime startDate, LocalDateTime endDate, Pageable pageable);
+            
+    // 특정 상태이고 특정 기간 내의 주문 수 조회
+    long countByStatusAndCreatedAtBetween(Order.OrderStatus status, LocalDateTime startDate, LocalDateTime endDate);
 } 

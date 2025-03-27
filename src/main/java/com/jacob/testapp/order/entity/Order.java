@@ -107,7 +107,8 @@ public class Order {
         PAID("결제완료"),
         SHIPPING("배송중"),
         COMPLETED("배송완료"),
-        CANCELLED("주문취소");
+        CANCELLED("취소됨"),
+        DELETED("삭제됨");
 
         private final String displayName;
 
@@ -115,6 +116,9 @@ public class Order {
             this.displayName = displayName;
         }
 
+        public String getDisplayName() {
+            return displayName;
+        }
     }
 
     @PrePersist

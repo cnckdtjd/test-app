@@ -107,6 +107,16 @@
                             <button type="submit" class="btn btn-primary">상태 변경</button>
                         </form>
                         
+                        <!-- 배송완료 버튼 추가 -->
+                        <div class="mt-3" th:if="${order.status.name() == 'SHIPPING'}">
+                            <form th:action="@{'/admin/orders/' + ${order.id} + '/status'}" method="post">
+                                <input type="hidden" name="status" value="COMPLETED">
+                                <button type="submit" class="btn btn-success w-100">
+                                    <i class="bi bi-check-circle"></i> 배송완료 처리
+                                </button>
+                            </form>
+                        </div>
+                        
                         <hr>
                         
                         <h6 class="fw-bold">배송 정보 추가</h6>
@@ -287,7 +297,7 @@
         </div>
 
         <!-- 주문 취소 -->
-        <div class="card shadow mb-4 border-danger" th:if="${order.status.name() != 'CANCELLED' && order.status.name() != 'COMPLETED'}">
+        <div class="card shadow mb-4 border-danger" th:if="${order.status.name() != 'CANCELLED' && order.status.name() != 'COMPLETED' && order.status.name() != 'DELETED'}">
             <div class="card-header py-3 bg-danger text-white">
                 <h6 class="m-0 font-weight-bold">주문 취소</h6>
             </div>
@@ -295,6 +305,19 @@
                 <p class="mb-3">주문을 취소하면 복원할 수 없습니다. 신중하게 진행해주세요.</p>
                 <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#cancelOrderModal">
                     <i class="bi bi-x-circle"></i> 주문 취소
+                </button>
+            </div>
+        </div>
+        
+        <!-- 주문 이력 삭제 -->
+        <div class="card shadow mb-4 border-secondary" th:if="${order.status.name() != 'DELETED'}">
+            <div class="card-header py-3 bg-secondary text-white">
+                <h6 class="m-0 font-weight-bold">주문 이력 삭제</h6>
+            </div>
+            <div class="card-body">
+                <p class="mb-3">주문 이력을 삭제하면 사용자의 주문 목록에서 제거됩니다. 관리자만 조회할 수 있습니다.</p>
+                <button type="button" class="btn btn-secondary" data-bs-toggle="modal" data-bs-target="#deleteOrderModal">
+                    <i class="bi bi-trash"></i> 주문 이력 삭제
                 </button>
             </div>
         </div>
@@ -319,6 +342,32 @@
                         <div class="modal-footer">
                             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
                             <button type="submit" class="btn btn-danger">주문 취소</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 주문 이력 삭제 모달 -->
+        <div class="modal fade" id="deleteOrderModal" tabindex="-1" aria-labelledby="deleteOrderModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="deleteOrderModalLabel">주문 이력 삭제 확인</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form th:action="@{'/admin/orders/' + ${order.id} + '/delete'}" method="post">
+                        <div class="modal-body">
+                            <p>주문 <strong th:text="${order.orderNumber}">ORD202403240001</strong>번의 이력을 삭제하시겠습니까?</p>
+                            <p class="text-secondary">삭제 후에도 관리자 화면에서는 조회할 수 있지만, 고객 화면에서는 보이지 않습니다.</p>
+                            <div class="mb-3">
+                                <label for="deleteReason" class="form-label">삭제 사유</label>
+                                <textarea class="form-control" id="deleteReason" name="deleteReason" rows="3" required></textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-light" data-bs-dismiss="modal">취소</button>
+                            <button type="submit" class="btn btn-secondary">이력 삭제</button>
                         </div>
                     </form>
                 </div>

@@ -39,6 +39,7 @@ public class CartController {
         model.addAttribute("cart", cart);
         model.addAttribute("cartItemCount", cart.getCartItems().size());
         model.addAttribute("totalPrice", cart.getTotalPrice());
+        model.addAttribute("user", user);
 
         return "cart/view";
     }

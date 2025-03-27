@@ -460,15 +460,52 @@
                 const priceRangeLabels = Object.keys(priceRangeData);
                 const priceRangeValues = Object.values(priceRangeData);
                 
+                // 가격대 라벨 한글 표시로 변환
+                const koreanLabels = priceRangeLabels.map(label => {
+                    switch (label) {
+                        case '0-5000': return '5천원 미만';
+                        case '5000-10000': return '5천원-1만원';
+                        case '10000-15000': return '1만원-1.5만원';
+                        case '15000-20000': return '1.5만원-2만원';
+                        case '20000-25000': return '2만원-2.5만원';
+                        case '25000-30000': return '2.5만원-3만원';
+                        case '30000-40000': return '3만원-4만원';
+                        case '40000-50000': return '4만원-5만원';
+                        case '50000+': return '5만원 이상';
+                        default: return label;
+                    }
+                });
+                
                 new Chart(document.getElementById('productPriceRangeChart').getContext('2d'), {
                     type: 'bar',
                     data: {
-                        labels: priceRangeLabels,
+                        labels: koreanLabels,
                         datasets: [{
                             label: '상품 수',
                             data: priceRangeValues,
-                            backgroundColor: '#1cc88a',
-                            borderWidth: 1
+                            backgroundColor: [
+                                'rgba(54, 185, 204, 0.8)',  // 청록색
+                                'rgba(28, 200, 138, 0.8)',  // 초록색
+                                'rgba(46, 204, 113, 0.8)',  // 연두색
+                                'rgba(155, 89, 182, 0.8)',  // 보라색
+                                'rgba(52, 152, 219, 0.8)',  // 파란색
+                                'rgba(243, 156, 18, 0.8)',  // 주황색
+                                'rgba(231, 76, 60, 0.8)',   // 빨간색
+                                'rgba(241, 196, 15, 0.8)',  // 노란색
+                                'rgba(26, 188, 156, 0.8)'   // 청록색
+                            ],
+                            borderWidth: 1,
+                            borderColor: [
+                                'rgba(54, 185, 204, 1)',
+                                'rgba(28, 200, 138, 1)',
+                                'rgba(46, 204, 113, 1)',
+                                'rgba(155, 89, 182, 1)',
+                                'rgba(52, 152, 219, 1)',
+                                'rgba(243, 156, 18, 1)',
+                                'rgba(231, 76, 60, 1)',
+                                'rgba(241, 196, 15, 1)',
+                                'rgba(26, 188, 156, 1)'
+                            ]
                         }]
                     },
                     options: {
@@ -479,6 +516,18 @@
                                 beginAtZero: true,
                                 ticks: {
                                     precision: 0
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `상품 수: ${context.raw}개`;
+                                    }
                                 }
                             }
                         }

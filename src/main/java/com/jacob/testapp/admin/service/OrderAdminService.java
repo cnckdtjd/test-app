@@ -17,10 +17,12 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * 관리자용 주문 관리 서비스
@@ -76,6 +78,9 @@ public class OrderAdminService {
         LocalDateTime startDateTime = startDate != null ? startDate.atStartOfDay() : null;
         LocalDateTime endDateTime = endDate != null ? endDate.atTime(LocalTime.MAX) : null;
         
+        // 명시적으로 DELETED 상태를 요청하지 않으면 제외 (기본 검색 조건)
+        boolean excludeDeleted = status != Order.OrderStatus.DELETED;
+        
         if (orderNumber != null && !orderNumber.isEmpty()) {
             if (status != null && startDateTime != null && endDateTime != null) {
                 return orderRepository.findByOrderNumberContainingAndStatusAndCreatedAtBetween(
@@ -83,10 +88,20 @@ public class OrderAdminService {
             } else if (status != null) {
                 return orderRepository.findByOrderNumberContainingAndStatus(orderNumber, status, pageable);
             } else if (startDateTime != null && endDateTime != null) {
-                return orderRepository.findByOrderNumberContainingAndCreatedAtBetween(
-                    orderNumber, startDateTime, endDateTime, pageable);
+                if (excludeDeleted) {
+                    return orderRepository.findByOrderNumberContainingAndStatusNotAndCreatedAtBetween(
+                        orderNumber, Order.OrderStatus.DELETED, startDateTime, endDateTime, pageable);
+                } else {
+                    return orderRepository.findByOrderNumberContainingAndCreatedAtBetween(
+                        orderNumber, startDateTime, endDateTime, pageable);
+                }
             } else {
-                return orderRepository.findByOrderNumberContaining(orderNumber, pageable);
+                if (excludeDeleted) {
+                    return orderRepository.findByOrderNumberContainingAndStatusNot(
+                        orderNumber, Order.OrderStatus.DELETED, pageable);
+                } else {
+                    return orderRepository.findByOrderNumberContaining(orderNumber, pageable);
+                }
             }
         } else if (status != null) {
             if (startDateTime != null && endDateTime != null) {
@@ -95,9 +110,18 @@ public class OrderAdminService {
                 return orderRepository.findByStatus(status, pageable);
             }
         } else if (startDateTime != null && endDateTime != null) {
-            return orderRepository.findByCreatedAtBetween(startDateTime, endDateTime, pageable);
+            if (excludeDeleted) {
+                return orderRepository.findByStatusNotAndCreatedAtBetween(
+                    Order.OrderStatus.DELETED, startDateTime, endDateTime, pageable);
+            } else {
+                return orderRepository.findByCreatedAtBetween(startDateTime, endDateTime, pageable);
+            }
         } else {
-            return orderRepository.findAll(pageable);
+            if (excludeDeleted) {
+                return orderRepository.findByStatusNot(Order.OrderStatus.DELETED, pageable);
+            } else {
+                return orderRepository.findAll(pageable);
+            }
         }
     }
 
@@ -201,45 +225,121 @@ public class OrderAdminService {
     }
     
     /**
+     * 주문 내역 삭제 (상태를 DELETED로 변경)
+     */
+    @Transactional
+    public Order markOrderAsDeleted(Long orderId, String deleteReason) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다: " + orderId));
+        
+        if (order.getStatus() == Order.OrderStatus.DELETED) {
+            throw new IllegalStateException("이미 삭제된 주문입니다.");
+        }
+        
+        Order.OrderStatus oldStatus = order.getStatus();
+        
+        // 주문 상태 변경
+        order.setStatus(Order.OrderStatus.DELETED);
+        
+        // 주문 이력 추가
+        OrderHistory history = new OrderHistory();
+        history.setOrder(order);
+        history.setStatusFrom(oldStatus);
+        history.setStatusTo(Order.OrderStatus.DELETED);
+        history.setStatusText("주문 내역 삭제");
+        history.setMemo(deleteReason);
+        history.setCreatedBy("관리자");
+        
+        orderHistoryRepository.save(history);
+        
+        return orderRepository.save(order);
+    }
+
+    /**
      * 주문 통계 정보 조회
      */
     @Transactional(readOnly = true)
     public Map<String, Object> getOrderStatistics() {
         Map<String, Object> statistics = new HashMap<>();
         
-        // 총 주문 수
-        long totalOrders = orderRepository.count();
-        statistics.put("totalOrders", totalOrders);
-        
-        // 상태별 주문 수
-        Map<String, Long> ordersByStatus = new HashMap<>();
-        for (Order.OrderStatus status : Order.OrderStatus.values()) {
-            long count = orderRepository.countByStatus(status);
-            ordersByStatus.put(status.name(), count);
+        try {
+            // 총 주문 수 (DELETED 상태 제외)
+            long totalOrders = orderRepository.count() - orderRepository.countByStatus(Order.OrderStatus.DELETED);
+            statistics.put("totalOrders", totalOrders);
+            
+            // 상태별 주문 수
+            Map<String, Long> ordersByStatus = new HashMap<>();
+            for (Order.OrderStatus status : Order.OrderStatus.values()) {
+                long count = orderRepository.countByStatus(status);
+                ordersByStatus.put(status.name(), count);
+            }
+            statistics.put("ordersByStatus", ordersByStatus);
+            
+            // 오늘 주문 수 (DELETED 상태 제외)
+            LocalDateTime todayStart = LocalDate.now().atStartOfDay();
+            LocalDateTime todayEnd = LocalDate.now().atTime(LocalTime.MAX);
+            long todayOrders = orderRepository.countByCreatedAtBetween(todayStart, todayEnd) - 
+                               orderRepository.countByStatusAndCreatedAtBetween(Order.OrderStatus.DELETED, todayStart, todayEnd);
+            statistics.put("todayOrders", todayOrders);
+            
+            // 이번 달 주문 수 (DELETED 상태 제외)
+            LocalDateTime monthStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+            LocalDateTime monthEnd = LocalDate.now().atTime(LocalTime.MAX);
+            long monthOrders = orderRepository.countByCreatedAtBetween(monthStart, monthEnd) - 
+                               orderRepository.countByStatusAndCreatedAtBetween(Order.OrderStatus.DELETED, monthStart, monthEnd);
+            statistics.put("monthOrders", monthOrders);
+            
+            // 총 매출 (DELETED 및 CANCELLED 상태 제외)
+            List<Order> validOrders = orderRepository.findAll().stream()
+                .filter(order -> order.getStatus() != Order.OrderStatus.DELETED && 
+                                order.getStatus() != Order.OrderStatus.CANCELLED)
+                .collect(Collectors.toList());
+            
+            double totalSales = validOrders.stream()
+                .mapToDouble(Order::getTotalAmount)
+                .sum();
+            statistics.put("totalSales", totalSales);
+            
+            // 이번 달 매출 (DELETED 및 CANCELLED 상태 제외)
+            double monthSales = validOrders.stream()
+                .filter(order -> order.getCreatedAt() != null && 
+                               order.getCreatedAt().isAfter(monthStart) && 
+                               order.getCreatedAt().isBefore(monthEnd))
+                .mapToDouble(Order::getTotalAmount)
+                .sum();
+            statistics.put("monthSales", monthSales);
+            
+            // 월별 주문 통계 (DELETED 상태 제외)
+            Map<String, Long> monthlyOrders = new HashMap<>();
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM");
+            
+            orderRepository.findAll().stream()
+                .filter(order -> order.getStatus() != Order.OrderStatus.DELETED)
+                .forEach(order -> {
+                    if (order.getCreatedAt() != null) {
+                        String month = order.getCreatedAt().format(formatter);
+                        monthlyOrders.put(month, monthlyOrders.getOrDefault(month, 0L) + 1);
+                    }
+                });
+            statistics.put("monthlyOrders", monthlyOrders);
+            
+            // 월별 매출 통계 (DELETED 및 CANCELLED 상태 제외)
+            Map<String, Double> monthlySales = new HashMap<>();
+            
+            validOrders.forEach(order -> {
+                if (order.getCreatedAt() != null) {
+                    String month = order.getCreatedAt().format(formatter);
+                    monthlySales.put(month, monthlySales.getOrDefault(month, 0.0) + order.getTotalAmount());
+                }
+            });
+            statistics.put("monthlySales", monthlySales);
+            
+            return statistics;
+        } catch (Exception e) {
+            log.error("주문 통계 정보 조회 중 오류 발생", e);
+            statistics.put("error", "통계 정보를 로드하는 중 오류가 발생했습니다");
+            return statistics;
         }
-        statistics.put("ordersByStatus", ordersByStatus);
-        
-        // 오늘 주문 수
-        LocalDateTime todayStart = LocalDate.now().atStartOfDay();
-        LocalDateTime todayEnd = LocalDate.now().atTime(LocalTime.MAX);
-        long todayOrders = orderRepository.countByCreatedAtBetween(todayStart, todayEnd);
-        statistics.put("todayOrders", todayOrders);
-        
-        // 이번 달 주문 수
-        LocalDateTime monthStart = LocalDate.now().withDayOfMonth(1).atStartOfDay();
-        LocalDateTime monthEnd = LocalDate.now().atTime(LocalTime.MAX);
-        long monthOrders = orderRepository.countByCreatedAtBetween(monthStart, monthEnd);
-        statistics.put("monthOrders", monthOrders);
-        
-        // 총 매출
-        Double totalSales = orderRepository.sumTotalAmount();
-        statistics.put("totalSales", totalSales != null ? totalSales : 0);
-        
-        // 이번 달 매출
-        Double monthSales = orderRepository.sumTotalAmountByCreatedAtBetween(monthStart, monthEnd);
-        statistics.put("monthSales", monthSales != null ? monthSales : 0);
-        
-        return statistics;
     }
     
     /**

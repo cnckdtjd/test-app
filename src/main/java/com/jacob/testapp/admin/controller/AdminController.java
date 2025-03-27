@@ -78,9 +78,13 @@ public class AdminController {
             long productCount = productService.countProducts();
             model.addAttribute("productCount", productCount);
             
-            // 주문 통계 (임시 더미 데이터, 실제로는 OrderService에서 가져와야 함)
-            model.addAttribute("orderCount", 0);
-            model.addAttribute("totalSales", "0");
+            // 주문 통계 (OrderAdminService에서 가져오기)
+            Map<String, Object> orderStats = orderAdminService.getOrderStatistics();
+            long orderCount = (long) orderStats.getOrDefault("totalOrders", 0L);
+            Double totalSales = (Double) orderStats.getOrDefault("totalSales", 0.0);
+            
+            model.addAttribute("orderCount", orderCount);
+            model.addAttribute("totalSales", totalSales);
             
             // 시스템 자원 사용량 정보
             Map<String, Object> systemResources = systemMonitorService.getSystemResources();
@@ -113,9 +117,16 @@ public class AdminController {
             long productCount = productService.countProducts();
             stats.put("productCount", productCount);
             
-            // 주문 통계 (임시 더미 데이터, 실제로는 OrderService에서 가져와야 함)
-            stats.put("orderCount", 0);
-            stats.put("totalSales", "0원");
+            // 주문 통계 (OrderAdminService에서 가져오기)
+            Map<String, Object> orderStats = orderAdminService.getOrderStatistics();
+            long orderCount = (long) orderStats.getOrDefault("totalOrders", 0L);
+            Double totalSales = (Double) orderStats.getOrDefault("totalSales", 0.0);
+            
+            stats.put("orderCount", orderCount);
+            
+            // 총 매출 포맷팅
+            NumberFormat formatter = NumberFormat.getCurrencyInstance(Locale.KOREA);
+            stats.put("totalSales", formatter.format(totalSales));
             
             return ResponseEntity.ok(stats);
         } catch (Exception e) {
@@ -603,6 +614,28 @@ public class AdminController {
         }
         
         return "redirect:/admin/orders/" + id;
+    }
+    
+    /**
+     * 주문 이력 삭제 (상태를 DELETED로 변경)
+     */
+    @PostMapping("/orders/{id}/delete")
+    public String deleteOrder(
+            @PathVariable Long id,
+            @RequestParam String deleteReason,
+            RedirectAttributes redirectAttributes) {
+        
+        log.info("주문 이력 삭제 요청 - 주문 ID: {}, 삭제 사유: {}", id, deleteReason);
+        
+        try {
+            orderAdminService.markOrderAsDeleted(id, deleteReason);
+            redirectAttributes.addFlashAttribute("successMessage", "주문 이력이 성공적으로 삭제되었습니다.");
+            return "redirect:/admin/orders"; // 목록 페이지로 리다이렉트
+        } catch (Exception e) {
+            log.error("주문 이력 삭제 중 오류 발생: ID = {}", id, e);
+            redirectAttributes.addFlashAttribute("errorMessage", "주문 이력 삭제 중 오류가 발생했습니다: " + e.getMessage());
+            return "redirect:/admin/orders/" + id;
+        }
     }
     
     @GetMapping("/orders/statistics")

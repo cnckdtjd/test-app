@@ -63,13 +63,13 @@
         <h2 class="mb-4">장바구니</h2>
         
         <!-- 알림 메시지 표시 -->
-        <div class="alert alert-success alert-dismissible fade show" role="alert" th:if="${message != null}">
-            <i class="bi bi-check-circle-fill me-2"></i><span th:text="${message}">성공 메시지</span>
+        <div class="alert alert-success alert-dismissible fade show" role="alert" th:if="${successMessage != null}">
+            <i class="bi bi-check-circle-fill me-2"></i><span th:text="${successMessage}">성공 메시지</span>
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
         
-        <div class="alert alert-danger alert-dismissible fade show" role="alert" th:if="${error != null}">
-            <i class="bi bi-exclamation-triangle-fill me-2"></i><span th:text="${error}">오류 메시지</span>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert" th:if="${errorMessage != null}">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i><span th:text="${errorMessage}">오류 메시지</span>
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
         
@@ -183,8 +183,14 @@
                                 <span th:text="${#numbers.formatCurrency(totalPrice)}">0원</span>
                             </div>
                             
+                            <!-- 현금 잔액 표시 -->
+                            <div class="d-flex justify-content-between mt-3">
+                                <span>보유 현금:</span>
+                                <span class="text-success fw-bold" th:text="${#numbers.formatCurrency(user.cashBalance)}">0원</span>
+                            </div>
+                            
                             <div class="d-grid gap-2 mt-4">
-                                <a th:href="@{/checkout}" class="btn btn-primary">
+                                <a th:href="@{/orders/checkout}" class="btn btn-primary">
                                     <i class="bi bi-credit-card me-1"></i>결제하기
                                 </a>
                             </div>

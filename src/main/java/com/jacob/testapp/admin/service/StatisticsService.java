@@ -123,11 +123,15 @@ public class StatisticsService {
             
             // 가격대별 상품 수
             Map<String, Long> priceRangeStats = new HashMap<>();
-            priceRangeStats.put("0-10000", products.stream().filter(p -> p.getPrice().compareTo(BigDecimal.valueOf(10000)) < 0).count());
-            priceRangeStats.put("10000-30000", products.stream().filter(p -> p.getPrice().compareTo(BigDecimal.valueOf(10000)) >= 0 && p.getPrice().compareTo(BigDecimal.valueOf(30000)) < 0).count());
-            priceRangeStats.put("30000-50000", products.stream().filter(p -> p.getPrice().compareTo(BigDecimal.valueOf(30000)) >= 0 && p.getPrice().compareTo(BigDecimal.valueOf(50000)) < 0).count());
-            priceRangeStats.put("50000-100000", products.stream().filter(p -> p.getPrice().compareTo(BigDecimal.valueOf(50000)) >= 0 && p.getPrice().compareTo(BigDecimal.valueOf(100000)) < 0).count());
-            priceRangeStats.put("100000+", products.stream().filter(p -> p.getPrice().compareTo(BigDecimal.valueOf(100000)) >= 0).count());
+            priceRangeStats.put("0-5000", products.stream().filter(p -> p.getPrice().compareTo(BigDecimal.valueOf(5000)) < 0).count());
+            priceRangeStats.put("5000-10000", products.stream().filter(p -> p.getPrice().compareTo(BigDecimal.valueOf(5000)) >= 0 && p.getPrice().compareTo(BigDecimal.valueOf(10000)) < 0).count());
+            priceRangeStats.put("10000-15000", products.stream().filter(p -> p.getPrice().compareTo(BigDecimal.valueOf(10000)) >= 0 && p.getPrice().compareTo(BigDecimal.valueOf(15000)) < 0).count());
+            priceRangeStats.put("15000-20000", products.stream().filter(p -> p.getPrice().compareTo(BigDecimal.valueOf(15000)) >= 0 && p.getPrice().compareTo(BigDecimal.valueOf(20000)) < 0).count());
+            priceRangeStats.put("20000-25000", products.stream().filter(p -> p.getPrice().compareTo(BigDecimal.valueOf(20000)) >= 0 && p.getPrice().compareTo(BigDecimal.valueOf(25000)) < 0).count());
+            priceRangeStats.put("25000-30000", products.stream().filter(p -> p.getPrice().compareTo(BigDecimal.valueOf(25000)) >= 0 && p.getPrice().compareTo(BigDecimal.valueOf(30000)) < 0).count());
+            priceRangeStats.put("30000-40000", products.stream().filter(p -> p.getPrice().compareTo(BigDecimal.valueOf(30000)) >= 0 && p.getPrice().compareTo(BigDecimal.valueOf(40000)) < 0).count());
+            priceRangeStats.put("40000-50000", products.stream().filter(p -> p.getPrice().compareTo(BigDecimal.valueOf(40000)) >= 0 && p.getPrice().compareTo(BigDecimal.valueOf(50000)) < 0).count());
+            priceRangeStats.put("50000+", products.stream().filter(p -> p.getPrice().compareTo(BigDecimal.valueOf(50000)) >= 0).count());
             stats.put("productsByPriceRange", priceRangeStats);
             
             // 활성/비활성 상품 수

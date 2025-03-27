@@ -3,118 +3,229 @@
       xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
       layout:decorate="~{user/layout}">
 <head>
+    <title>내 주문 내역</title>
+    <style>
+        .badge {
+            font-size: 0.8rem;
+        }
+        .order-item-img {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        .order-row:hover {
+            background-color: #f8f9fa;
+        }
+    </style>
 </head>
 <body>
     <section layout:fragment="content">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>주문 관리</h2>
-            <div class="d-flex">
-                <button id="refreshOrdersBtn" class="btn btn-primary">
-                    <i class="bi bi-arrow-clockwise"></i> 새로고침
-                </button>
+        <div class="container py-5">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>주문 내역</h2>
+                <a th:href="@{/home}" class="btn btn-primary">
+                    <i class="bi bi-house-door"></i> 홈으로
+                </a>
+            </div>
+            
+            <!-- 알림 메시지 표시 -->
+            <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+                <i class="bi bi-check-circle-fill me-2"></i>
+                <span th:text="${successMessage}">성공 메시지</span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            
+            <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <span th:text="${errorMessage}">오류 메시지</span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+
+            <!-- 주문 목록 테이블 -->
+            <div class="card shadow mb-4">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="m-0 font-weight-bold">주문 목록</h5>
+                    <span class="text-muted">총 <span th:text="${orders.totalElements}">0</span>개의 주문</span>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>주문번호</th>
+                                    <th>주문상품</th>
+                                    <th>총 금액</th>
+                                    <th>주문상태</th>
+                                    <th>주문일시</th>
+                                    <th>관리</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="order : ${orders}" th:id="'order-' + ${order.id}" class="order-row">
+                                    <td>
+                                        <a th:href="@{'/orders/' + ${order.id}}" class="fw-bold" th:text="${order.orderNumber}">ORD202403240001</a>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <img th:if="${order.items.size() > 0 && order.items[0].product.imageUrl != null}" 
+                                                 th:src="${order.items[0].product.imageUrl}" 
+                                                 class="order-item-img me-2" alt="상품 이미지">
+                                            <span th:text="${order.items.size() > 0 ? order.items[0].product.name + (order.items.size() > 1 ? ' 외 ' + (order.items.size() - 1) + '건' : '') : '상품 없음'}">
+                                                상품명 외 1건
+                                            </span>
+                                        </div>
+                                    </td>
+                                    <td th:text="${#numbers.formatCurrency(order.totalAmount)}">50,000원</td>
+                                    <td>
+                                        <span th:class="${'badge text-bg-' + 
+                                                        (order.status.name() == 'PENDING' ? 'warning' : 
+                                                         order.status.name() == 'PAID' ? 'info' : 
+                                                         order.status.name() == 'SHIPPING' ? 'primary' : 
+                                                         order.status.name() == 'COMPLETED' ? 'success' : 
+                                                         order.status.name() == 'CANCELLED' ? 'danger' : 'secondary')}" 
+                                              th:text="${order.status.displayName}">
+                                            결제대기
+                                        </span>
+                                    </td>
+                                    <td th:text="${#temporals.format(order.createdAt, 'yyyy-MM-dd HH:mm')}">2023-01-01 12:00</td>
+                                    <td class="text-end pe-3">
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button th:if="${order.status.name() == 'PENDING' || order.status.name() == 'PAID'}" 
+                                                    class="btn btn-outline-danger cancel-order-btn" 
+                                                    th:data-order-id="${order.id}">
+                                                <i class="bi bi-x-circle"></i> 주문취소
+                                            </button>
+                                            <button class="btn btn-outline-secondary delete-order-btn" 
+                                                    th:data-order-id="${order.id}">
+                                                <i class="bi bi-trash"></i> 삭제
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr th:if="${orders.empty}">
+                                    <td colspan="6" class="text-center py-5">
+                                        <i class="bi bi-clipboard-x fs-1 text-muted d-block mb-3"></i>
+                                        <p class="lead">주문 내역이 없습니다.</p>
+                                        <a th:href="@{/products}" class="btn btn-primary mt-3">
+                                            <i class="bi bi-cart-plus me-2"></i>쇼핑하러 가기
+                                        </a>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- 페이지네이션 -->
+                    <nav th:if="${orders.totalPages > 1}" aria-label="Page navigation">
+                        <ul class="pagination justify-content-center">
+                            <li class="page-item" th:classappend="${orders.first} ? 'disabled' : ''">
+                                <a class="page-link" th:href="@{/orders(page=0, size=${orders.size})}" aria-label="First">
+                                    <span aria-hidden="true">&laquo;&laquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item" th:classappend="${orders.first} ? 'disabled' : ''">
+                                <a class="page-link" th:href="@{/orders(page=${orders.number - 1}, size=${orders.size})}" aria-label="Previous">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item" 
+                                th:each="i : ${#numbers.sequence(orders.number - 2 <= 0 ? 0 : orders.number - 2, orders.number + 2 >= orders.totalPages - 1 ? orders.totalPages - 1 : orders.number + 2)}"
+                                th:classappend="${i == orders.number} ? 'active' : ''">
+                                <a class="page-link" th:href="@{/orders(page=${i}, size=${orders.size})}" th:text="${i + 1}">1</a>
+                            </li>
+                            <li class="page-item" th:classappend="${orders.last} ? 'disabled' : ''">
+                                <a class="page-link" th:href="@{/orders(page=${orders.number + 1}, size=${orders.size})}" aria-label="Next">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                            <li class="page-item" th:classappend="${orders.last} ? 'disabled' : ''">
+                                <a class="page-link" th:href="@{/orders(page=${orders.totalPages - 1}, size=${orders.size})}" aria-label="Last">
+                                    <span aria-hidden="true">&raquo;&raquo;</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 주문 취소 모달 -->
+        <div class="modal fade" id="cancelOrderModal" tabindex="-1" aria-labelledby="cancelOrderModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="cancelOrderModalLabel">주문 취소 확인</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>정말로 이 주문을 취소하시겠습니까?</p>
+                        <p class="text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>이 작업은 되돌릴 수 없습니다.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                        <form id="cancelOrderForm" method="post">
+                            <button type="submit" class="btn btn-danger">주문 취소 확인</button>
+                        </form>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <!-- 주문 목록 테이블 -->
-        <div class="card shadow mb-4">
-            <div class="card-header py-3 d-flex justify-content-between align-items-center">
-                <h6 class="m-0 font-weight-bold text-primary">주문 목록</h6>
-                <span class="text-muted">총 <span th:text="${orders.totalElements}">0</span>개의 주문</span>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-bordered" id="ordersTable" width="100%" cellspacing="0">
-                        <thead>
-                            <tr>
-                                <th>주문번호</th>
-                                <th>주문자</th>
-                                <th>주문상품</th>
-                                <th>총 금액</th>
-                                <th>주문상태</th>
-                                <th>결제방법</th>
-                                <th>주문일시</th>
-                                <th>관리</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr th:each="order : ${orders}" th:id="'order-' + ${order.id}">
-                                <td>
-                                    <a th:href="@{'/admin/orders/' + ${order.id}}" th:text="${order.orderNumber}">ORD202403240001</a>
-                                </td>
-                                <td th:text="${order.user != null ? order.user.username : '비회원'}">사용자명</td>
-                                <td>
-                                    <span th:text="${order.items.size() > 0 ? order.items[0].product.name + (order.items.size() > 1 ? ' 외 ' + (order.items.size() - 1) + '건' : '') : '상품 없음'}">
-                                        상품명 외 1건
-                                    </span>
-                                </td>
-                                <td th:text="${#numbers.formatCurrency(order.totalAmount)}">50,000원</td>
-                                <td>
-                                    <span th:class="${'badge text-bg-' + 
-                                                    (order.status.name() == 'PENDING' ? 'warning' : 
-                                                     order.status.name() == 'PAID' ? 'info' : 
-                                                     order.status.name() == 'SHIPPING' ? 'primary' : 
-                                                     order.status.name() == 'COMPLETED' ? 'success' : 
-                                                     order.status.name() == 'CANCELLED' ? 'danger' : 'secondary')}" 
-                                          th:text="${order.status.displayName}">
-                                        결제대기
-                                    </span>
-                                </td>
-                                <td th:text="${order.paymentMethod}">신용카드</td>
-                                <td th:text="${#temporals.format(order.createdAt, 'yyyy-MM-dd HH:mm')}">2023-01-01 12:00</td>
-                                <td>
-                                    <div class="btn-group btn-group-sm" role="group">
-                                        <a th:href="@{'/admin/orders/' + ${order.id}}" class="btn btn-primary">
-                                            <i class="bi bi-eye"></i>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                            <tr th:if="${orders.empty}">
-                                <td colspan="8" class="text-center py-4">
-                                    주문 내역이 없습니다.
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+        <!-- 주문 삭제 모달 -->
+        <div class="modal fade" id="deleteOrderModal" tabindex="-1" aria-labelledby="deleteOrderModalLabel" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="deleteOrderModalLabel">주문 내역 삭제 확인</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>이 주문 내역을 목록에서 삭제하시겠습니까?</p>
+                        <p>삭제 후에도 관리자는 주문 내역을 확인할 수 있습니다.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">취소</button>
+                        <form id="deleteOrderForm" method="post">
+                            <button type="submit" class="btn btn-danger">삭제 확인</button>
+                        </form>
+                    </div>
                 </div>
-                
-                <!-- 페이지네이션 -->
-                <nav th:if="${orders.totalPages > 1}" aria-label="Page navigation">
-                    <ul class="pagination justify-content-center">
-                        <li class="page-item" th:classappend="${orders.first} ? 'disabled' : ''">
-                            <a class="page-link" th:href="@{/admin/orders(page=0, size=${orders.size}, status=${selectedStatus}, orderNumber=${param.orderNumber}, startDate=${param.startDate}, endDate=${param.endDate})}" aria-label="First">
-                                <span aria-hidden="true">&laquo;&laquo;</span>
-                            </a>
-                        </li>
-                        <li class="page-item" th:classappend="${orders.first} ? 'disabled' : ''">
-                            <a class="page-link" th:href="@{/admin/orders(page=${orders.number - 1}, size=${orders.size}, status=${selectedStatus}, orderNumber=${param.orderNumber}, startDate=${param.startDate}, endDate=${param.endDate})}" aria-label="Previous">
-                                <span aria-hidden="true">&laquo;</span>
-                            </a>
-                        </li>
-                        <li class="page-item" 
-                            th:each="i : ${#numbers.sequence(orders.number - 2 <= 0 ? 0 : orders.number - 2, orders.number + 2 >= orders.totalPages - 1 ? orders.totalPages - 1 : orders.number + 2)}"
-                            th:classappend="${i == orders.number} ? 'active' : ''">
-                            <a class="page-link" th:href="@{/admin/orders(page=${i}, size=${orders.size}, status=${selectedStatus}, orderNumber=${param.orderNumber}, startDate=${param.startDate}, endDate=${param.endDate})}" th:text="${i + 1}">1</a>
-                        </li>
-                        <li class="page-item" th:classappend="${orders.last} ? 'disabled' : ''">
-                            <a class="page-link" th:href="@{/admin/orders(page=${orders.number + 1}, size=${orders.size}, status=${selectedStatus}, orderNumber=${param.orderNumber}, startDate=${param.startDate}, endDate=${param.endDate})}" aria-label="Next">
-                                <span aria-hidden="true">&raquo;</span>
-                            </a>
-                        </li>
-                        <li class="page-item" th:classappend="${orders.last} ? 'disabled' : ''">
-                            <a class="page-link" th:href="@{/admin/orders(page=${orders.totalPages - 1}, size=${orders.size}, status=${selectedStatus}, orderNumber=${param.orderNumber}, startDate=${param.startDate}, endDate=${param.endDate})}" aria-label="Last">
-                                <span aria-hidden="true">&raquo;&raquo;</span>
-                            </a>
-                        </li>
-                    </ul>
-                </nav>
             </div>
         </div>
     </section>
 
     <!-- 페이지별 스크립트 -->
     <th:block layout:fragment="scripts">
-        <script th:src="@{/js/admin/order.js}"></script>
+        <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                // 주문 취소 버튼 이벤트
+                const cancelButtons = document.querySelectorAll('.cancel-order-btn');
+                const cancelForm = document.getElementById('cancelOrderForm');
+                const cancelModal = new bootstrap.Modal(document.getElementById('cancelOrderModal'));
+                
+                cancelButtons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        const orderId = this.getAttribute('data-order-id');
+                        cancelForm.action = `/orders/${orderId}/cancel`;
+                        cancelModal.show();
+                    });
+                });
+                
+                // 주문 삭제 버튼 이벤트
+                const deleteButtons = document.querySelectorAll('.delete-order-btn');
+                const deleteForm = document.getElementById('deleteOrderForm');
+                const deleteModal = new bootstrap.Modal(document.getElementById('deleteOrderModal'));
+                
+                deleteButtons.forEach(button => {
+                    button.addEventListener('click', function() {
+                        const orderId = this.getAttribute('data-order-id');
+                        deleteForm.action = `/orders/${orderId}/delete`;
+                        deleteModal.show();
+                    });
+                });
+            });
+        </script>
     </th:block>
 </body>
 </html> 

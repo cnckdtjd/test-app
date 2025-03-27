@@ -6,6 +6,8 @@ import com.jacob.testapp.user.entity.User;
 import com.jacob.testapp.cart.service.CartService;
 import com.jacob.testapp.product.service.ProductService;
 import com.jacob.testapp.user.service.UserService;
+import com.jacob.testapp.order.entity.Order;
+import com.jacob.testapp.order.service.OrderService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -23,12 +25,14 @@ public class HomeController {
     private final UserService userService;
     private final ProductService productService;
     private final CartService cartService;
+    private final OrderService orderService;
 
     @Autowired
-    public HomeController(UserService userService, ProductService productService, CartService cartService) {
+    public HomeController(UserService userService, ProductService productService, CartService cartService, OrderService orderService) {
         this.userService = userService;
         this.productService = productService;
         this.cartService = cartService;
+        this.orderService = orderService;
     }
 
     @GetMapping("/")
@@ -95,6 +99,10 @@ public class HomeController {
             model.addAttribute("cartItemCount", 0);
             model.addAttribute("cartTotalPrice", 0);
         }
+        
+        // 최근 주문 내역 조회 (최대 3개)
+        List<Order> recentOrders = orderService.getRecentOrdersByUserExcludeDeleted(user, 3);
+        model.addAttribute("recentOrders", recentOrders);
         
         return "home";
     }

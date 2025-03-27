@@ -66,11 +66,17 @@ public class DataInitializer implements CommandLineRunner {
 
     private void createTestUserIfNotExists() {
         if (!userRepository.existsByUsername("user")) {
+            // 랜덤 주소 생성
+            String randomAddress = generateRandomAddress();
+            String randomPhone = generateRandomPhoneNumber();
+            
             User user = User.builder()
                     .username("user")
                     .password(passwordEncoder.encode("user"))
                     .name("테스트 사용자")
                     .email("user@example.com")
+                    .phone(randomPhone)
+                    .address(randomAddress)
                     .role(User.Role.ROLE_USER)
                     .status(User.Status.ACTIVE)
                     .enabled(true)
@@ -92,6 +98,30 @@ public class DataInitializer implements CommandLineRunner {
         int randomAmount = 50000 + random.nextInt(150001);
         // 100원 단위로 절삭
         return (long) (randomAmount / 100) * 100;
+    }
+    
+    /**
+     * 랜덤 한국 주소 생성
+     */
+    private String generateRandomAddress() {
+        String[] cities = {"서울특별시", "부산광역시", "인천광역시", "대구광역시", "대전광역시", "광주광역시", "울산광역시", "세종특별자치시"};
+        String[] districts = {"중구", "동구", "서구", "남구", "북구", "강남구", "강서구", "강동구", "송파구", "마포구", "성동구", "성북구", "영등포구"};
+        String[] details = {"대로", "로", "길", "거리", "아파트", "빌딩", "오피스텔", "주택"};
+        
+        String randomCity = cities[random.nextInt(cities.length)];
+        String randomDistrict = districts[random.nextInt(districts.length)];
+        String randomDetail = details[random.nextInt(details.length)];
+        int randomNumber = random.nextInt(100) + 1;
+        
+        return randomCity + " " + randomDistrict + " " + randomNumber + randomDetail + " " + 
+               (random.nextInt(100) + 1) + "동 " + (random.nextInt(1000) + 1) + "호";
+    }
+    
+    /**
+     * 랜덤 전화번호 생성 (010-XXXX-XXXX 형식)
+     */
+    private String generateRandomPhoneNumber() {
+        return String.format("010-%04d-%04d", random.nextInt(10000), random.nextInt(10000));
     }
 
     private void createSampleProducts() {

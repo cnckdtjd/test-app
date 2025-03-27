@@ -15,6 +15,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Payment processing
     setupPaymentProcessing();
+    
+    // 체크아웃 페이지에서 현금 결제 버튼 이벤트 설정
+    setupCashPayment();
 });
 
 function setupCartFunctionality() {
@@ -243,4 +246,19 @@ function showAlert(type, message) {
             bsAlert.close();
         }
     }, 5000);
+}
+
+function setupCashPayment() {
+    const cashPaymentForm = document.querySelector('#cash-payment-form');
+    if (cashPaymentForm) {
+        cashPaymentForm.addEventListener('submit', function(e) {
+            const submitButton = this.querySelector('button[type="submit"]');
+            
+            // 결제 버튼 비활성화 및 로딩 상태 표시
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 처리 중...';
+            }
+        });
+    }
 } 

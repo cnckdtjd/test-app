@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{user/layout}">
+<head>
+    <title>결제 완료</title>
+    <style>
+        .order-complete-box {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .complete-icon {
+            font-size: 4rem;
+            color: #28a745;
+            margin-bottom: 20px;
+        }
+        .order-info {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .order-info-header {
+            border-bottom: 1px solid #dee2e6;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <section layout:fragment="content">
+        <div class="container py-5">
+            <div class="order-complete-box">
+                <i class="bi bi-check-circle-fill complete-icon"></i>
+                <h2 class="mb-3">결제가 완료되었습니다</h2>
+                <p class="text-muted">주문이 성공적으로 처리되었습니다. 주문 상세 내역은 아래에서 확인하실 수 있습니다.</p>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-8 mx-auto">
+                    <div class="order-info">
+                        <div class="order-info-header">
+                            <h4>주문 정보</h4>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <p><strong>주문 번호:</strong> <span th:text="${orderId}">ORD-12345</span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>주문 일자:</strong> <span th:text="${orderDate}">2023-09-15</span></p>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <p><strong>결제 금액:</strong> <span th:text="${#numbers.formatCurrency(totalAmount)}">50,000원</span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>결제 방법:</strong> <span>현금 잔액</span></p>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <p><strong>현재 잔액:</strong> <span th:text="${#numbers.formatCurrency(remainingBalance)}">100,000원</span></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between mt-4">
+                        <a th:href="@{/products}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left me-2"></i>쇼핑 계속하기
+                        </a>
+                        <a th:href="@{/orders}" class="btn btn-primary">
+                            <i class="bi bi-list-ul me-2"></i>주문 내역 보기
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+</body>
+</html> 

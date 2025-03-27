@@ -293,13 +293,18 @@ public class TestDataService {
 
                                 // 현금 잔액을 5만원에서 20만원 사이로 랜덤하게 설정 (100원 단위 절삭)
                                 Long cashBalance = generateRandomCashBalance(localRandom);
+                                
+                                // 한국 랜덤 주소 생성
+                                String randomAddress = generateRandomAddress(localRandom);
+                                String randomPhone = generateRandomPhoneNumber(localRandom);
 
                                 User user = User.builder()
                                         .username(username)
                                         .email(email)
                                         .password(password)
                                         .name(firstName + " " + lastName) // 실제 이름은 띄어쓰기로 구분
-                                        .phone("010-1234-" + String.format("%04d", i))
+                                        .phone(randomPhone)
+                                        .address(randomAddress)
                                         .role(User.Role.ROLE_USER) // UserService.register와 일치
                                         .status(User.Status.ACTIVE) // UserService.register와 일치
                                         .loginAttempts(0) // UserService.register와 일치
@@ -646,5 +651,37 @@ public class TestDataService {
         // 100원 단위로 절삭
         int truncatedAmount = (randomAmount / 100) * 100;
         return new BigDecimal(truncatedAmount).setScale(0, java.math.RoundingMode.DOWN);
+    }
+
+    /**
+     * 한국 지역 랜덤 주소 생성
+     */
+    private String generateRandomAddress(ThreadLocalRandom random) {
+        String[] cities = {"서울특별시", "부산광역시", "인천광역시", "대구광역시", "대전광역시", "광주광역시", "울산광역시", "세종특별자치시", 
+                         "경기도", "강원도", "충청북도", "충청남도", "전라북도", "전라남도", "경상북도", "경상남도", "제주특별자치도"};
+        String[] districts = {"중구", "동구", "서구", "남구", "북구", "강남구", "강서구", "강동구", "송파구", "마포구", "성동구", 
+                            "성북구", "영등포구", "동작구", "서초구", "광진구", "용산구", "종로구", "은평구", "도봉구", "노원구"};
+        String[] details = {"대로", "로", "길", "거리", "아파트", "빌딩", "오피스텔", "주택", "타워", "맨션", "리젠시", "파크", "푸르지오", "힐스테이트"};
+        
+        String randomCity = cities[random.nextInt(cities.length)];
+        String randomDistrict = districts[random.nextInt(districts.length)];
+        String randomDetail = details[random.nextInt(details.length)];
+        int randomNumber = random.nextInt(100) + 1;
+        
+        // 경기도 등 도 단위는 시/군을 추가
+        if (randomCity.endsWith("도")) {
+            String[] cities2 = {"수원시", "성남시", "안양시", "안산시", "고양시", "용인시", "부천시", "의정부시", "화성시", "광명시", "평택시", "과천시"};
+            randomCity = randomCity + " " + cities2[random.nextInt(cities2.length)];
+        }
+        
+        return randomCity + " " + randomDistrict + " " + randomNumber + randomDetail + " " + 
+               (random.nextInt(100) + 1) + "동 " + (random.nextInt(1000) + 1) + "호";
+    }
+    
+    /**
+     * 랜덤 전화번호 생성 (010-XXXX-XXXX 형식)
+     */
+    private String generateRandomPhoneNumber(ThreadLocalRandom random) {
+        return String.format("010-%04d-%04d", random.nextInt(10000), random.nextInt(10000));
     }
 } 
