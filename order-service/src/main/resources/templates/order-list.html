@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/layout :: head('주문 내역')"></head>
+<body>
+    <header th:replace="fragments/layout :: header"></header>
+    
+    <div class="container">
+        <h1 class="my-4">주문 내역</h1>
+        
+        <div class="order-filters mb-4">
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="period-filter">
+                        <button class="btn btn-filter" data-period="1">1개월</button>
+                        <button class="btn btn-filter" data-period="3">3개월</button>
+                        <button class="btn btn-filter" data-period="6">6개월</button>
+                        <button class="btn btn-filter active" data-period="12">1년</button>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="status-filter">
+                        <select id="statusFilter" class="form-control">
+                            <option value="">모든 상태</option>
+                            <option value="ORDERED">주문완료</option>
+                            <option value="PAID">결제완료</option>
+                            <option value="PREPARING">상품준비중</option>
+                            <option value="SHIPPING">배송중</option>
+                            <option value="DELIVERED">배송완료</option>
+                            <option value="CANCELED">취소</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="orderList">
+            <!-- 주문 목록이 여기에 동적으로 로드됩니다 -->
+        </div>
+        
+        <div class="pagination-container" id="pagination">
+            <!-- 페이지네이션이 여기에 동적으로 로드됩니다 -->
+        </div>
+    </div>
+    
+    <footer th:replace="fragments/layout :: footer"></footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            loadOrders(1);
+            
+            document.querySelectorAll('.btn-filter').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    loadOrders(1);
+                });
+            });
+            
+            document.getElementById('statusFilter').addEventListener('change', function() {
+                loadOrders(1);
+            });
+        });
+        
+        async function loadOrders(page) {
+            try {
+                const token = getToken();
+                if (!token) {
+                    window.location.href = '/user-service/login';
+                    return;
+                }
+                
+                const period = document.querySelector('.btn-filter.active').getAttribute('data-period');
+                const status = document.getElementById('statusFilter').value;
+                
+                let url = `/order-service/api/orders?page=${page}&size=10`;
+                if (period) url += `&period=${period}`;
+                if (status) url += `&status=${status}`;
+                
+                const response = await fetch(url, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('주문 내역을 불러오는데 실패했습니다.');
+                }
+                
+                const data = await response.json();
+                
+                const orderListContainer = document.getElementById('orderList');
+                
+                if (data.content.length === 0) {
+                    orderListContainer.innerHTML = `
+                        <div class="empty-orders text-center py-5">
+                            <h3>주문 내역이 없습니다.</h3>
+                            <p>상품을 구매해보세요!</p>
+                            <a href="/product-service/products" class="btn">쇼핑하러 가기</a>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                let html = '';
+                
+                data.content.forEach(order => {
+                    html += `
+                        <div class="card order-card mb-4">
+                            <div class="card-header">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p class="order-date">주문일자: ${new Date(order.orderedAt).toLocaleDateString()}</p>
+                                        <p class="order-number">주문번호: ${order.orderNumber}</p>
+                                    </div>
+                                    <div class="col-md-6 text-right">
+                                        <span class="order-status ${order.status.toLowerCase()}">${getStatusText(order.status)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                    `;
+                    
+                    order.orderItems.forEach(item => {
+                        html += `
+                            <div class="order-item">
+                                <div class="row">
+                                    <div class="col-md-2">
+                                        <img src="${item.imageUrl || '/product-service/images/no-image.jpg'}" alt="${item.productName}" class="order-item-image">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h5 class="order-item-name">${item.productName}</h5>
+                                        <p class="order-item-price">${item.price.toLocaleString()}원 x ${item.quantity}개</p>
+                                    </div>
+                                    <div class="col-md-4 text-right">
+                                        <p class="order-item-total">${(item.price * item.quantity).toLocaleString()}원</p>
+                                        ${order.status === 'DELIVERED' ? `<button class="btn btn-sm" onclick="writeReview(${item.productId})">리뷰작성</button>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    
+                    html += `
+                            </div>
+                            <div class="card-footer">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p class="order-total">총 결제금액: <strong>${order.totalAmount.toLocaleString()}원</strong></p>
+                                    </div>
+                                    <div class="col-md-6 text-right">
+                                        <a href="/order-service/orders/${order.id}" class="btn">주문 상세보기</a>
+                                        ${order.status === 'ORDERED' || order.status === 'PAID' ? `<button class="btn btn-secondary ml-2" onclick="cancelOrder(${order.id})">주문 취소</button>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                orderListContainer.innerHTML = html;
+                
+                // 페이지네이션 생성
+                createPagination(data.totalPages, data.number + 1);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert(error.message, 'danger');
+            }
+        }
+        
+        function getStatusText(status) {
+            const statusMap = {
+                'ORDERED': '주문완료',
+                'PAID': '결제완료',
+                'PREPARING': '상품준비중',
+                'SHIPPING': '배송중',
+                'DELIVERED': '배송완료',
+                'CANCELED': '취소'
+            };
+            
+            return statusMap[status] || status;
+        }
+        
+        function createPagination(totalPages, currentPage) {
+            const paginationContainer = document.getElementById('pagination');
+            paginationContainer.innerHTML = '';
+            
+            if (totalPages <= 1) return;
+            
+            const ul = document.createElement('ul');
+            ul.className = 'pagination';
+            
+            // 이전 페이지 버튼
+            const prevLi = document.createElement('li');
+            prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+            prevLi.innerHTML = `<a class="page-link" ${currentPage > 1 ? `onclick="loadOrders(${currentPage - 1})"` : ''}>이전</a>`;
+            ul.appendChild(prevLi);
+            
+            // 페이지 번호
+            for (let i = 1; i <= totalPages; i++) {
+                const li = document.createElement('li');
+                li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+                li.innerHTML = `<a class="page-link" onclick="loadOrders(${i})">${i}</a>`;
+                ul.appendChild(li);
+            }
+            
+            // 다음 페이지 버튼
+            const nextLi = document.createElement('li');
+            nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+            nextLi.innerHTML = `<a class="page-link" ${currentPage < totalPages ? `onclick="loadOrders(${currentPage + 1})"` : ''}>다음</a>`;
+            ul.appendChild(nextLi);
+            
+            paginationContainer.appendChild(ul);
+        }
+        
+        async function cancelOrder(orderId) {
+            if (!confirm('주문을 취소하시겠습니까?')) {
+                return;
+            }
+            
+            try {
+                const token = getToken();
+                if (!token) {
+                    window.location.href = '/user-service/login';
+                    return;
+                }
+                
+                const response = await fetch(`/order-service/api/orders/${orderId}/cancel`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('주문 취소에 실패했습니다.');
+                }
+                
+                showAlert('주문이 취소되었습니다.', 'success');
+                loadOrders(1);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert(error.message, 'danger');
+            }
+        }
+        
+        function writeReview(productId) {
+            window.location.href = `/product-service/products/${productId}/review`;
+        }
+    </script>
+
+    <style>
+        .order-filters {
+            margin-top: 30px;
+        }
+        
+        .period-filter {
+            display: flex;
+        }
+        
+        .btn-filter {
+            margin-right: 10px;
+            padding: 8px 16px;
+            border: 1px solid var(--medium-gray);
+            background-color: white;
+            color: var(--text-color);
+        }
+        
+        .btn-filter.active {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .order-card {
+            border: 1px solid var(--medium-gray);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .order-date, .order-number {
+            margin-bottom: 5px;
+        }
+        
+        .order-status {
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        
+        .order-status.ordered {
+            background-color: var(--light-gray);
+            color: var(--text-color);
+        }
+        
+        .order-status.paid {
+            background-color: rgba(66, 133, 244, 0.1);
+            color: var(--primary-color);
+        }
+        
+        .order-status.preparing {
+            background-color: rgba(251, 188, 5, 0.1);
+            color: var(--warning-color);
+        }
+        
+        .order-status.shipping {
+            background-color: rgba(52, 168, 83, 0.1);
+            color: var(--secondary-color);
+        }
+        
+        .order-status.delivered {
+            background-color: rgba(52, 168, 83, 0.1);
+            color: var(--secondary-color);
+        }
+        
+        .order-status.canceled {
+            background-color: rgba(234, 67, 53, 0.1);
+            color: var(--danger-color);
+        }
+        
+        .order-item {
+            padding: 15px 0;
+            border-bottom: 1px solid var(--medium-gray);
+        }
+        
+        .order-item:last-child {
+            border-bottom: none;
+        }
+        
+        .order-item-image {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+        
+        .order-item-name {
+            margin-bottom: 5px;
+        }
+        
+        .order-item-price {
+            color: var(--dark-gray);
+        }
+        
+        .order-item-total {
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        
+        .order-total {
+            font-size: 18px;
+        }
+        
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 30px;
+        }
+        
+        .pagination {
+            display: flex;
+            list-style: none;
+            padding: 0;
+        }
+        
+        .page-item {
+            margin: 0 5px;
+        }
+        
+        .page-link {
+            padding: 8px 12px;
+            border: 1px solid var(--medium-gray);
+            border-radius: 4px;
+            color: var(--primary-color);
+            cursor: pointer;
+        }
+        
+        .page-item.active .page-link {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .page-item.disabled .page-link {
+            color: var(--dark-gray);
+            cursor: not-allowed;
+        }
+    </style>
+</body>
+</html> 

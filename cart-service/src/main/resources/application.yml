@@ -1,0 +1,43 @@
+server:
+  port: 8084
+  servlet:
+    context-path: /cart-service
+
+spring:
+  application:
+    name: CART-SERVICE
+  datasource:
+    driver-class-name: org.mariadb.jdbc.Driver
+    url: jdbc:mariadb://localhost:3306/cart_service_db
+    username: root
+    password: password
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=500,expireAfterWrite=60s
+
+mybatis:
+  mapper-locations: classpath:mappers/**/*.xml
+  type-aliases-package: com.jacob.cartservice.model
+
+external-services:
+  user-service:
+    url: http://localhost:8081/user-service/api
+  product-service:
+    url: http://localhost:8082/product-service/api
+
+eureka:
+  client:
+    register-with-eureka: true
+    fetch-registry: true
+    service-url:
+      defaultZone: http://localhost:8761/eureka
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics 

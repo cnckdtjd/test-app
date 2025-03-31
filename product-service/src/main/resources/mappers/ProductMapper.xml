@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jacob.productservice.repository.ProductMapper">
+    
+    <!-- 결과 매핑 정의 -->
+    <resultMap id="productResultMap" type="com.jacob.productservice.model.Product">
+        <id property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="description" column="description"/>
+        <result property="price" column="price"/>
+        <result property="stock" column="stock"/>
+        <result property="imageUrl" column="image_url"/>
+        <result property="category" column="category"/>
+        <result property="status" column="status"/>
+        <result property="remarks" column="remarks"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+        <result property="version" column="version"/>
+    </resultMap>
+
+    <!-- 공통 컬럼 -->
+    <sql id="productColumns">
+        id, name, description, price, stock, image_url,
+        category, status, remarks, created_at, updated_at, version
+    </sql>
+
+    <!-- 조회 쿼리 -->
+    <select id="findById" resultMap="productResultMap">
+        SELECT 
+            <include refid="productColumns" />
+        FROM 
+            products
+        WHERE 
+            id = #{id}
+    </select>
+
+    <select id="findAll" resultMap="productResultMap">
+        SELECT 
+            <include refid="productColumns" />
+        FROM 
+            products
+        ORDER BY 
+            id
+    </select>
+
+    <select id="findAllWithPagination" resultMap="productResultMap">
+        SELECT 
+            <include refid="productColumns" />
+        FROM 
+            products
+        ORDER BY 
+            id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="findByStatusEquals" resultMap="productResultMap">
+        SELECT 
+            <include refid="productColumns" />
+        FROM 
+            products
+        WHERE 
+            status = #{status}
+        ORDER BY 
+            id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="findByStatusEqualsAndNameContaining" resultMap="productResultMap">
+        SELECT 
+            <include refid="productColumns" />
+        FROM 
+            products
+        WHERE 
+            status = #{status}
+            AND name LIKE CONCAT('%', #{name}, '%')
+        ORDER BY 
+            id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="findByStatusEqualsAndCategory" resultMap="productResultMap">
+        SELECT 
+            <include refid="productColumns" />
+        FROM 
+            products
+        WHERE 
+            status = #{status}
+            AND category = #{category}
+        ORDER BY 
+            id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="findByStatusEqualsAndNameContainingAndCategory" resultMap="productResultMap">
+        SELECT 
+            <include refid="productColumns" />
+        FROM 
+            products
+        WHERE 
+            status = #{status}
+            AND name LIKE CONCAT('%', #{name}, '%')
+            AND category = #{category}
+        ORDER BY 
+            id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <!-- 카운트 쿼리 -->
+    <select id="countAll" resultType="long">
+        SELECT COUNT(*)
+        FROM products
+    </select>
+
+    <select id="countByStatus" resultType="long">
+        SELECT COUNT(*)
+        FROM products
+        WHERE status = #{status}
+    </select>
+
+    <select id="countByStatusAndNameContaining" resultType="long">
+        SELECT COUNT(*)
+        FROM products
+        WHERE status = #{status}
+          AND name LIKE CONCAT('%', #{name}, '%')
+    </select>
+
+    <select id="countByStatusAndCategory" resultType="long">
+        SELECT COUNT(*)
+        FROM products
+        WHERE status = #{status}
+          AND category = #{category}
+    </select>
+
+    <select id="countByStatusAndNameContainingAndCategory" resultType="long">
+        SELECT COUNT(*)
+        FROM products
+        WHERE status = #{status}
+          AND name LIKE CONCAT('%', #{name}, '%')
+          AND category = #{category}
+    </select>
+
+    <!-- 추가 검색 기능 -->
+    <select id="findByNameContaining" resultMap="productResultMap">
+        SELECT 
+            <include refid="productColumns" />
+        FROM 
+            products
+        WHERE 
+            name LIKE CONCAT('%', #{name}, '%')
+        ORDER BY 
+            id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="findByNameContainingAndCategory" resultMap="productResultMap">
+        SELECT 
+            <include refid="productColumns" />
+        FROM 
+            products
+        WHERE 
+            name LIKE CONCAT('%', #{name}, '%')
+            AND category = #{category}
+        ORDER BY 
+            id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="findByCategoryOrderByPriceAsc" resultMap="productResultMap">
+        SELECT 
+            <include refid="productColumns" />
+        FROM 
+            products
+        WHERE 
+            category = #{category}
+        ORDER BY 
+            price ASC
+    </select>
+
+    <select id="findByNameContainingIgnoreCase" resultMap="productResultMap">
+        SELECT 
+            <include refid="productColumns" />
+        FROM 
+            products
+        WHERE 
+            LOWER(name) LIKE CONCAT('%', LOWER(#{name}), '%')
+    </select>
+
+    <select id="findByNameStartingWith" resultMap="productResultMap">
+        SELECT 
+            <include refid="productColumns" />
+        FROM 
+            products
+        WHERE 
+            name LIKE CONCAT(#{prefix}, '%')
+    </select>
+
+    <select id="findTopByOrderByCreatedAtDesc" resultMap="productResultMap">
+        SELECT 
+            <include refid="productColumns" />
+        FROM 
+            products
+        ORDER BY 
+            created_at DESC
+        LIMIT #{limit}
+    </select>
+
+    <!-- 상품 저장 -->
+    <insert id="save" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO products (
+            name, description, price, stock, image_url,
+            category, status, remarks, created_at, updated_at, version
+        ) VALUES (
+            #{name}, #{description}, #{price}, #{stock}, #{imageUrl},
+            #{category}, #{status}, #{remarks}, 
+            #{createdAt}, #{updatedAt}, #{version}
+        )
+    </insert>
+
+    <!-- 상품 수정 -->
+    <update id="update">
+        UPDATE 
+            products
+        SET 
+            name = #{name},
+            description = #{description},
+            price = #{price},
+            stock = #{stock},
+            image_url = #{imageUrl},
+            category = #{category},
+            status = #{status},
+            remarks = #{remarks},
+            updated_at = #{updatedAt},
+            version = #{version} + 1
+        WHERE 
+            id = #{id}
+            AND version = #{version}
+    </update>
+
+    <!-- 재고 관련 쿼리 -->
+    <update id="updateStockById">
+        UPDATE 
+            products
+        SET 
+            stock = stock - #{quantity},
+            updated_at = NOW(),
+            version = version + 1
+        WHERE 
+            id = #{id}
+            AND stock >= #{quantity}
+    </update>
+
+    <update id="decreaseStock">
+        UPDATE 
+            products
+        SET 
+            stock = stock - #{quantity},
+            updated_at = NOW(),
+            version = version + 1
+        WHERE 
+            id = #{id}
+            AND stock >= #{quantity}
+    </update>
+
+    <update id="increaseStock">
+        UPDATE 
+            products
+        SET 
+            stock = stock + #{quantity},
+            updated_at = NOW(),
+            version = version + 1
+        WHERE 
+            id = #{id}
+    </update>
+
+    <!-- 삭제 쿼리 -->
+    <delete id="deleteById">
+        DELETE FROM products
+        WHERE id = #{id}
+    </delete>
+
+    <delete id="deleteByIdBetween">
+        DELETE FROM products
+        WHERE id >= #{startId} AND id <= #{endId}
+    </delete>
+
+    <!-- 관리자 기능 -->
+    <select id="findByNameContainingAndCategoryAndStatus" resultMap="productResultMap">
+        SELECT 
+            <include refid="productColumns" />
+        FROM 
+            products
+        WHERE 
+            name LIKE CONCAT('%', #{name}, '%')
+            AND category = #{category}
+            AND status = #{status}
+        ORDER BY 
+            id
+        LIMIT #{limit} OFFSET #{offset}
+    </select>
+
+    <select id="countByStockLessThanEqual" resultType="long">
+        SELECT COUNT(*)
+        FROM products
+        WHERE stock <= #{stock}
+    </select>
+
+    <select id="countByCategory" resultType="long">
+        SELECT COUNT(*)
+        FROM products
+        WHERE category = #{category}
+    </select>
+
+    <update id="updateStockByCategory">
+        UPDATE products
+        SET stock = #{stock},
+            updated_at = NOW(),
+            version = version + 1
+        WHERE category = #{category}
+    </update>
+</mapper> 

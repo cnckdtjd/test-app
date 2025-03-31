@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE configuration
+        PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+    <settings>
+        <!-- 캐시 활성화 -->
+        <setting name="cacheEnabled" value="true"/>
+        <!-- 지연 로딩 활성화 -->
+        <setting name="lazyLoadingEnabled" value="true"/>
+        <!-- 자동 매핑 설정 -->
+        <setting name="autoMappingBehavior" value="PARTIAL"/>
+        <!-- Underscore를 Camel case로 자동 변환 -->
+        <setting name="mapUnderscoreToCamelCase" value="true"/>
+        <!-- 쿼리 결과가 null인 경우 빈 컬렉션 반환 -->
+        <setting name="callSettersOnNulls" value="true"/>
+        <!-- 쿼리 실행 타임아웃 설정 (초 단위) -->
+        <setting name="defaultStatementTimeout" value="30"/>
+        <!-- 로깅 설정 -->
+        <setting name="logImpl" value="SLF4J"/>
+    </settings>
+    
+    <typeAliases>
+        <!-- 모델 클래스의 별칭 추가 -->
+        <package name="com.jacob.orderservice.model"/>
+    </typeAliases>
+    
+    <typeHandlers>
+        <!-- 날짜 핸들러 -->
+        <typeHandler handler="org.apache.ibatis.type.LocalDateTimeTypeHandler" javaType="java.time.LocalDateTime" />
+        <!-- Enum 핸들러 -->
+        <typeHandler handler="org.apache.ibatis.type.EnumTypeHandler" javaType="com.jacob.orderservice.model.Order$OrderStatus" />
+    </typeHandlers>
+</configuration> 

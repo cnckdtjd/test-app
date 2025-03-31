@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.jacob.adminservice.mapper.AdminUserMapper">
+    <resultMap id="AdminUserResultMap" type="AdminUser">
+        <id property="id" column="id"/>
+        <result property="username" column="username"/>
+        <result property="password" column="password"/>
+        <result property="email" column="email"/>
+        <result property="role" column="role"/>
+        <result property="enabled" column="enabled"/>
+        <result property="createdAt" column="created_at"/>
+        <result property="updatedAt" column="updated_at"/>
+    </resultMap>
+
+    <select id="findAll" resultMap="AdminUserResultMap">
+        SELECT * FROM admin_users
+    </select>
+
+    <select id="findById" resultMap="AdminUserResultMap">
+        SELECT * FROM admin_users WHERE id = #{id}
+    </select>
+
+    <select id="findByUsername" resultMap="AdminUserResultMap">
+        SELECT * FROM admin_users WHERE username = #{username}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO admin_users (username, password, email, role, enabled, created_at, updated_at)
+        VALUES (#{username}, #{password}, #{email}, #{role}, #{enabled}, NOW(), NOW())
+    </insert>
+
+    <update id="update">
+        UPDATE admin_users
+        SET username = #{username}, email = #{email}, role = #{role}, 
+            enabled = #{enabled}, updated_at = NOW()
+        WHERE id = #{id}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM admin_users WHERE id = #{id}
+    </delete>
+</mapper> 

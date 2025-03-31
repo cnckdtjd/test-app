@@ -1,0 +1,56 @@
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      routes:
+        - id: user-service
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/user-service/**
+          filters:
+            - StripPrefix=1
+            
+        - id: product-service
+          uri: lb://PRODUCT-SERVICE
+          predicates:
+            - Path=/product-service/**
+          filters:
+            - StripPrefix=1
+            
+        - id: order-service
+          uri: lb://ORDER-SERVICE
+          predicates:
+            - Path=/order-service/**
+          filters:
+            - StripPrefix=1
+            
+        - id: cart-service
+          uri: lb://CART-SERVICE
+          predicates:
+            - Path=/cart-service/**
+          filters:
+            - StripPrefix=1
+            
+        - id: admin-service
+          uri: lb://ADMIN-SERVICE
+          predicates:
+            - Path=/admin-service/**
+          filters:
+            - StripPrefix=1
+            
+        # MinIO 이미지 서버로 요청 전달
+        - id: minio-server
+          uri: http://localhost:9000
+          predicates:
+            - Path=/book-image/**
+          filters:
+            - RewritePath=/api/(?<segment>.*), /${segment}
+
+server:
+  port: 8000
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/ 

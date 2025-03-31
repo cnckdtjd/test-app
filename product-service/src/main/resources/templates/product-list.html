@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head th:replace="fragments/layout :: head('상품 목록')"></head>
+<body>
+    <header th:replace="fragments/layout :: header"></header>
+    
+    <div class="container">
+        <h1 class="my-4">상품 목록</h1>
+        
+        <div class="row mb-4">
+            <div class="col">
+                <div class="search-container">
+                    <input type="text" id="searchKeyword" class="form-control" placeholder="상품명 검색">
+                    <button id="searchButton" class="btn">검색</button>
+                </div>
+            </div>
+            <div class="col">
+                <div class="filter-container">
+                    <select id="categoryFilter" class="form-control">
+                        <option value="">전체 카테고리</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row" id="productList">
+            <!-- 상품 목록이 여기에 동적으로 로드됩니다 -->
+        </div>
+        
+        <div class="pagination-container" id="pagination">
+            <!-- 페이지네이션이 여기에 동적으로 로드됩니다 -->
+        </div>
+    </div>
+    
+    <footer th:replace="fragments/layout :: footer"></footer>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            loadProducts(1);
+            loadCategories();
+            
+            document.getElementById('searchButton').addEventListener('click', function() {
+                loadProducts(1);
+            });
+            
+            document.getElementById('categoryFilter').addEventListener('change', function() {
+                loadProducts(1);
+            });
+        });
+        
+        async function loadProducts(page) {
+            try {
+                const keyword = document.getElementById('searchKeyword').value;
+                const category = document.getElementById('categoryFilter').value;
+                
+                let url = `/product-service/api/products?page=${page}`;
+                if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+                if (category) url += `&category=${encodeURIComponent(category)}`;
+                
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error('상품 목록을 불러오는데 실패했습니다.');
+                }
+                
+                const data = await response.json();
+                
+                const productListContainer = document.getElementById('productList');
+                productListContainer.innerHTML = '';
+                
+                if (data.content.length === 0) {
+                    productListContainer.innerHTML = '<p class="text-center w-100">검색 결과가 없습니다.</p>';
+                    return;
+                }
+                
+                data.content.forEach(product => {
+                    const productCard = document.createElement('div');
+                    productCard.className = 'col-lg-3 col-md-4 col-sm-6 mb-4';
+                    productCard.innerHTML = `
+                        <div class="card">
+                            <img src="${product.imageUrl || '/product-service/images/no-image.jpg'}" class="card-img-top" alt="${product.name}">
+                            <div class="card-body">
+                                <h5 class="card-title">${product.name}</h5>
+                                <p class="card-text">${product.price.toLocaleString()}원</p>
+                                <a href="/product-service/products/${product.id}" class="btn">상세보기</a>
+                            </div>
+                        </div>
+                    `;
+                    productListContainer.appendChild(productCard);
+                });
+                
+                // 페이지네이션 생성
+                createPagination(data.totalPages, data.number + 1);
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert(error.message, 'danger');
+            }
+        }
+        
+        function createPagination(totalPages, currentPage) {
+            const paginationContainer = document.getElementById('pagination');
+            paginationContainer.innerHTML = '';
+            
+            if (totalPages <= 1) return;
+            
+            const ul = document.createElement('ul');
+            ul.className = 'pagination';
+            
+            // 이전 페이지 버튼
+            const prevLi = document.createElement('li');
+            prevLi.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+            prevLi.innerHTML = `<a class="page-link" ${currentPage > 1 ? `onclick="loadProducts(${currentPage - 1})"` : ''}>이전</a>`;
+            ul.appendChild(prevLi);
+            
+            // 페이지 번호
+            for (let i = 1; i <= totalPages; i++) {
+                const li = document.createElement('li');
+                li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+                li.innerHTML = `<a class="page-link" onclick="loadProducts(${i})">${i}</a>`;
+                ul.appendChild(li);
+            }
+            
+            // 다음 페이지 버튼
+            const nextLi = document.createElement('li');
+            nextLi.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+            nextLi.innerHTML = `<a class="page-link" ${currentPage < totalPages ? `onclick="loadProducts(${currentPage + 1})"` : ''}>다음</a>`;
+            ul.appendChild(nextLi);
+            
+            paginationContainer.appendChild(ul);
+        }
+        
+        async function loadCategories() {
+            try {
+                const response = await fetch('/product-service/api/categories');
+                
+                if (!response.ok) {
+                    throw new Error('카테고리 목록을 불러오는데 실패했습니다.');
+                }
+                
+                const categories = await response.json();
+                
+                const categorySelect = document.getElementById('categoryFilter');
+                
+                categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category.id;
+                    option.textContent = category.name;
+                    categorySelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+    </script>
+
+    <style>
+        .search-container {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        
+        .search-container input {
+            flex: 1;
+            margin-right: 10px;
+        }
+        
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 30px;
+        }
+        
+        .pagination {
+            display: flex;
+            list-style: none;
+            padding: 0;
+        }
+        
+        .page-item {
+            margin: 0 5px;
+        }
+        
+        .page-link {
+            padding: 8px 12px;
+            border: 1px solid var(--medium-gray);
+            border-radius: 4px;
+            color: var(--primary-color);
+            cursor: pointer;
+        }
+        
+        .page-item.active .page-link {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .page-item.disabled .page-link {
+            color: var(--dark-gray);
+            cursor: not-allowed;
+        }
+    </style>
+</body>
+</html> 
