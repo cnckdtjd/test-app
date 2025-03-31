@@ -1,5 +1,6 @@
 package com.jacob.testapp.common.config;
 
+import com.jacob.testapp.common.security.AuthenticationRateLimitFilter;
 import com.jacob.testapp.common.security.CustomAuthenticationFailureHandler;
 import com.jacob.testapp.common.security.CustomAuthenticationSuccessHandler;
 import com.jacob.testapp.common.security.CustomUserDetailsService;
@@ -18,11 +19,13 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 
 /**
  * 애플리케이션 설정 클래스
@@ -51,8 +54,9 @@ public class ApplicationConfig implements WebMvcConfigurer {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, AuthenticationRateLimitFilter authenticationRateLimitFilter) throws Exception {
         http
+            .addFilterBefore(authenticationRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
             .csrf(AbstractHttpConfigurer::disable) // 부하 테스트를 위해 CSRF 비활성화
             .authorizeHttpRequests(auth -> auth
                     .requestMatchers("/", "/register", "/login", "/users/register", "/css/**", "/js/**", "/img/**", "/error").permitAll()
@@ -62,7 +66,8 @@ public class ApplicationConfig implements WebMvcConfigurer {
             )
             .formLogin(form -> form
                 .loginPage("/login")
-                .loginProcessingUrl("/login")
+                .loginProcessingUrl("/login-process")
+                .failureUrl("/login?error=true")
                 .successHandler(customAuthenticationSuccessHandler())
                 .failureHandler(authenticationFailureHandler)
                 .permitAll()
@@ -78,17 +83,27 @@ public class ApplicationConfig implements WebMvcConfigurer {
             .sessionManagement(session -> session
                 .maximumSessions(1)
                 .maxSessionsPreventsLogin(false)
-            );
+                .expiredUrl("/login?expired")
+            )
+            .requestCache(cache -> cache.disable());
 
         return http.build();
     }
 
     @Bean
+    public DaoAuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+        authProvider.setUserDetailsService(userDetailsService);
+        authProvider.setPasswordEncoder(passwordEncoder());
+        // 중요: 사용자가 발견되지 않을 때 예외를 숨기지 않도록 설정
+        authProvider.setHideUserNotFoundExceptions(false);
+        return authProvider;
+    }
+
+    @Bean
     public AuthenticationManager authenticationManager(HttpSecurity http) throws Exception {
         return http.getSharedObject(AuthenticationManagerBuilder.class)
-                .userDetailsService(userDetailsService)
-                .passwordEncoder(passwordEncoder())
-                .and()
+                .authenticationProvider(authenticationProvider())
                 .build();
     }
 

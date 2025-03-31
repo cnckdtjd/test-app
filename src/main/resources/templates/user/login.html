@@ -24,6 +24,36 @@
             border-radius: 8px;
             box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
         }
+        .is-invalid {
+            border-color: #e74a3b !important;
+            padding-right: calc(1.5em + 0.75rem);
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' width='12' height='12' fill='none' stroke='%23e74a3b'%3e%3ccircle cx='6' cy='6' r='4.5'/%3e%3cpath stroke-linejoin='round' d='M5.8 3.6h.4L6 6.5z'/%3e%3ccircle cx='6' cy='8.2' r='.6' fill='%23e74a3b' stroke='none'/%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right calc(0.375em + 0.1875rem) center;
+            background-size: calc(0.75em + 0.375rem) calc(0.75em + 0.375rem);
+        }
+        .input-group .is-invalid {
+            z-index: 2;
+        }
+        .invalid-feedback {
+            display: none;
+            width: 100%;
+            margin-top: 0.25rem;
+            font-size: 0.875em;
+            color: #e74a3b;
+        }
+        .is-invalid ~ .invalid-feedback {
+            display: block;
+        }
+        .shake-error {
+            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
+        }
+        @keyframes shake {
+            10%, 90% { transform: translate3d(-1px, 0, 0); }
+            20%, 80% { transform: translate3d(2px, 0, 0); }
+            30%, 50%, 70% { transform: translate3d(-3px, 0, 0); }
+            40%, 60% { transform: translate3d(3px, 0, 0); }
+        }
     </style>
 </head>
 <body class="bg-light d-flex align-items-center justify-content-center" style="min-height: 100vh;">
@@ -51,12 +81,15 @@
                         <span th:text="${successMessage}">회원가입이 완료되었습니다. 로그인해주세요.</span>
                     </div>
                     
-                    <form th:action="@{/login}" method="post">
+                    <form th:action="@{/login-process}" method="post">
                         <div class="mb-3">
                             <label for="username" class="form-label">아이디</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="bi bi-person-fill"></i></span>
                                 <input type="text" class="form-control" id="username" name="username" required autofocus placeholder="아이디를 입력하세요">
+                            </div>
+                            <div class="invalid-feedback">
+                                입력하신 아이디가 존재하지 않습니다
                             </div>
                         </div>
                         <div class="mb-3">
@@ -64,6 +97,9 @@
                             <div class="input-group">
                                 <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
                                 <input type="password" class="form-control" id="password" name="password" required placeholder="비밀번호를 입력하세요">
+                            </div>
+                            <div class="invalid-feedback">
+                                비밀번호가 올바르지 않습니다
                             </div>
                         </div>
                         <div class="mb-3 form-check">
@@ -88,5 +124,221 @@
     </div>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+    // 중복 로그인 요청 방지를 위한 보강된 스크립트
+    document.addEventListener('DOMContentLoaded', function() {
+        // CSRF 토큰 메타 태그 추가 (없는 경우)
+        if (!document.querySelector('meta[name="_csrf"]')) {
+            const head = document.head || document.getElementsByTagName('head')[0];
+            
+            // CSRF 토큰 메타 태그 추가
+            const csrfMeta = document.createElement('meta');
+            csrfMeta.setAttribute('name', '_csrf');
+            csrfMeta.setAttribute('content', '');
+            head.appendChild(csrfMeta);
+            
+            // CSRF 헤더 메타 태그 추가
+            const csrfHeaderMeta = document.createElement('meta');
+            csrfHeaderMeta.setAttribute('name', '_csrf_header');
+            csrfHeaderMeta.setAttribute('content', 'X-CSRF-TOKEN');
+            head.appendChild(csrfHeaderMeta);
+        }
+        
+        // URL에 error 파라미터가 있으면 로그인 실패 상태
+        const urlParams = new URLSearchParams(window.location.search);
+        const hasError = urlParams.has('error');
+        
+        // 로그인 폼 찾기
+        const loginForm = document.querySelector('form[action*="login-process"]');
+        if (!loginForm) return;
+        
+        // 로그인 실패 상태에서는 버튼 즉시 활성화
+        if (hasError) {
+            const submitButton = loginForm.querySelector('button[type="submit"]');
+            if (submitButton) {
+                submitButton.disabled = false;
+                submitButton.innerHTML = '<i class="bi bi-box-arrow-in-right me-2"></i>로그인';
+            }
+        }
+        
+        // 전역 변수로 제출 상태 관리
+        window.isLoginFormSubmitted = false;
+        
+        // 폼 제출 이벤트 핸들러 - AJAX 제출로 변경
+        loginForm.addEventListener('submit', function(e) {
+            e.preventDefault(); // 기본 폼 제출 방지
+            
+            // 이미 제출 처리 중인 경우 추가 제출 방지
+            if (window.isLoginFormSubmitted) {
+                console.log('폼이 이미 제출됨: 중복 제출 방지');
+                return false;
+            }
+            
+            // 기존 오류 메시지 제거
+            loginForm.querySelectorAll('.alert').forEach(alert => alert.remove());
+            
+            // 제출 상태 플래그 설정
+            window.isLoginFormSubmitted = true;
+            
+            // 버튼 비활성화 및 로딩 표시
+            const submitButton = this.querySelector('button[type="submit"]');
+            if (submitButton) {
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>로그인 중...';
+            }
+            
+            // 폼 데이터 가져오기
+            const formData = new FormData(loginForm);
+            
+            // CSRF 토큰 추가
+            const csrfToken = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+            const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+            
+            // 고유 요청 ID 생성
+            const requestId = `login-${Date.now()}-${Math.random().toString(36).substring(2, 10)}`;
+            
+            // 헤더 객체 생성
+            const headers = new Headers();
+            headers.append('X-Requested-With', 'XMLHttpRequest');
+            headers.append('X-Request-ID', requestId);
+            if (csrfHeader && csrfToken) {
+                headers.append(csrfHeader, csrfToken);
+            }
+            
+            // 타임아웃 설정
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+            
+            // 콘솔 로깅
+            console.log(`로그인 요청 시작: ${requestId}`);
+            
+            // Fetch API를 사용한 AJAX 요청
+            fetch(loginForm.action, {
+                method: 'POST',
+                body: formData,
+                headers: headers,
+                credentials: 'same-origin',
+                signal: controller.signal,
+                redirect: 'follow' // 리다이렉트 자동 처리
+            })
+            .then(response => {
+                clearTimeout(timeoutId);
+                console.log(`로그인 응답 수신: ${requestId}, 상태: ${response.status}, 리다이렉트: ${response.redirected}`);
+                
+                if (response.redirected) {
+                    // 성공 시 리다이렉트 (로그인 성공)
+                    console.log(`로그인 성공 리다이렉트: ${response.url}`);
+                    window.location.href = response.url;
+                    return Promise.resolve();
+                } 
+                else if (response.status === 401 || response.status === 429) {
+                    // 인증 실패 또는 너무 많은 요청
+                    return response.json().then(data => {
+                        console.log(`로그인 실패 응답: ${requestId}, 코드: ${data.code}`);
+                        // 실패 코드에 따른 처리
+                        const errorCode = data.code || '';
+                        const defaultMsg = data.message || "로그인 실패";
+                        
+                        // 오류 표시
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'alert alert-danger';
+                        errorDiv.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>' + defaultMsg;
+                        loginForm.prepend(errorDiv);
+                        
+                        // 오류 코드에 따른 UI 처리
+                        if (errorCode === 'USERNAME_NOT_FOUND') {
+                            // 아이디 필드 강조 표시
+                            const usernameInput = document.getElementById('username');
+                            if (usernameInput) {
+                                usernameInput.classList.add('is-invalid', 'shake-error');
+                                setTimeout(() => {
+                                    usernameInput.focus();
+                                    usernameInput.classList.remove('shake-error'); // 애니메이션 제거
+                                }, 600);
+                            }
+                        } 
+                        else if (errorCode === 'BAD_CREDENTIALS') {
+                            // 비밀번호 필드 강조 표시
+                            const passwordInput = document.getElementById('password');
+                            if (passwordInput) {
+                                passwordInput.classList.add('is-invalid', 'shake-error');
+                                passwordInput.value = ''; // 비밀번호 필드 초기화
+                                setTimeout(() => {
+                                    passwordInput.focus();
+                                    passwordInput.classList.remove('shake-error'); // 애니메이션 제거
+                                }, 600);
+                            }
+                        }
+                        
+                        // 폼 자체에 애니메이션 적용
+                        loginForm.classList.add('shake-error');
+                        setTimeout(() => loginForm.classList.remove('shake-error'), 600);
+                        
+                        // 제출 상태 초기화
+                        window.isLoginFormSubmitted = false;
+                        
+                        // 버튼 재활성화
+                        if (submitButton) {
+                            submitButton.disabled = false;
+                            submitButton.innerHTML = '<i class="bi bi-box-arrow-in-right me-2"></i>로그인';
+                        }
+                        
+                        // 실패 처리 완료
+                        return Promise.resolve();
+                    });
+                } 
+                else {
+                    console.warn(`로그인 예상치 못한 응답: ${requestId}, 상태: ${response.status}`);
+                    throw new Error("로그인 처리 중 오류가 발생했습니다");
+                }
+            })
+            .catch(error => {
+                clearTimeout(timeoutId);
+                console.error(`로그인 오류: ${requestId}`, error);
+                
+                let errorMessage = error.message;
+                if (error.name === 'AbortError') {
+                    errorMessage = "로그인 요청 시간이 초과되었습니다. 네트워크 연결을 확인하세요.";
+                }
+                
+                // 오류 이미 표시되었는지 확인
+                if (!loginForm.querySelector('.alert-danger')) {
+                    // 입력 필드 검증 스타일 제거 이벤트 추가
+                    const removeValidationStyles = () => {
+                        document.querySelectorAll('input.is-invalid').forEach(input => {
+                            input.classList.remove('is-invalid');
+                        });
+                    };
+                    
+                    // 입력 필드에 포커스 이벤트 추가
+                    document.getElementById('username').addEventListener('focus', removeValidationStyles);
+                    document.getElementById('password').addEventListener('focus', removeValidationStyles);
+                    
+                    // 에러 표시
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'alert alert-danger';
+                    errorDiv.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>' + errorMessage;
+                    loginForm.prepend(errorDiv);
+                }
+                
+                // 버튼 재활성화
+                if (submitButton) {
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = '<i class="bi bi-box-arrow-in-right me-2"></i>로그인';
+                }
+                
+                // 제출 상태 플래그 초기화
+                window.isLoginFormSubmitted = false;
+            });
+            
+            return false;
+        });
+        
+        // 페이지 새로고침 시 제출 상태 초기화
+        window.addEventListener('beforeunload', function() {
+            window.isLoginFormSubmitted = false;
+        });
+    });
+    </script>
 </body>
 </html> 
