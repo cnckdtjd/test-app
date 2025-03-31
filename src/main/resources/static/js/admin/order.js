@@ -77,6 +77,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // 주문 목록 페이지의 버튼들에 이벤트 연결
+    initOrderListButtons();
 });
 
 /**
@@ -146,4 +149,142 @@ function formatDate(date) {
  */
 function formatCurrency(amount) {
     return new Intl.NumberFormat('ko-KR', { style: 'currency', currency: 'KRW' }).format(amount);
+}
+
+/**
+ * 주문 목록 페이지의 버튼 이벤트를 초기화합니다
+ */
+function initOrderListButtons() {
+    // 배송완료 버튼 이벤트
+    const completeButtons = document.querySelectorAll('.complete-order-btn');
+    completeButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const orderId = this.getAttribute('data-order-id');
+            
+            // 버튼이 비활성화 상태인 경우 처리
+            if (this.disabled) {
+                const row = this.closest('tr');
+                const statusCell = row.querySelector('td:nth-child(5)');
+                const statusText = statusCell ? statusCell.textContent.trim() : '';
+                
+                if (statusText.includes('배송완료')) {
+                    alert('이미 배송완료 처리된 주문입니다.');
+                } else if (statusText.includes('취소')) {
+                    alert('취소된 주문은 배송완료 처리할 수 없습니다.');
+                } else if (statusText.includes('삭제')) {
+                    alert('삭제된 주문은 배송완료 처리할 수 없습니다.');
+                } else {
+                    alert('이 주문은 배송완료 처리할 수 없습니다.');
+                }
+                return;
+            }
+            
+            if (confirm('이 주문을 배송완료 처리하시겠습니까?')) {
+                // CSRF 토큰 가져오기
+                const csrf = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+                const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+                
+                // 배송완료 처리 요청 보내기
+                const formData = new FormData();
+                formData.append('status', 'COMPLETED');
+                
+                fetch(`/admin/orders/${orderId}/status`, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        [csrfHeader]: csrf
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('배송완료 처리 실패');
+                    }
+                    alert('주문이 배송완료 처리되었습니다.');
+                    window.location.reload();
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('배송완료 처리 중 오류가 발생했습니다: ' + error.message);
+                });
+            }
+        });
+    });
+    
+    // 주문취소 버튼 이벤트
+    const cancelButtons = document.querySelectorAll('.cancel-order-btn');
+    cancelButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const orderId = this.getAttribute('data-order-id');
+            if (confirm('이 주문을 취소하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+                const cancelReason = prompt('주문 취소 사유를 입력해주세요:', '관리자에 의한 주문 취소');
+                if (cancelReason) {
+                    // CSRF 토큰 가져오기
+                    const csrf = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+                    const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+                    
+                    // 주문 취소 요청 보내기
+                    const formData = new FormData();
+                    formData.append('cancelReason', cancelReason);
+                    
+                    fetch(`/admin/orders/${orderId}/cancel`, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            [csrfHeader]: csrf
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('주문 취소 실패');
+                        }
+                        alert('주문이 취소되었습니다.');
+                        window.location.reload();
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('주문 취소 중 오류가 발생했습니다: ' + error.message);
+                    });
+                }
+            }
+        });
+    });
+    
+    // 주문 이력 삭제 버튼 이벤트
+    const deleteButtons = document.querySelectorAll('.delete-order-btn');
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const orderId = this.getAttribute('data-order-id');
+            if (confirm('이 주문 이력을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+                const deleteReason = prompt('주문 이력 삭제 이유를 입력해주세요:', '관리자에 의한 이력 삭제');
+                if (deleteReason) {
+                    // CSRF 토큰 가져오기
+                    const csrf = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+                    const csrfHeader = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+                    
+                    // 주문 이력 삭제 요청 보내기
+                    const formData = new FormData();
+                    formData.append('deleteReason', deleteReason);
+                    
+                    fetch(`/admin/orders/${orderId}/delete`, {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            [csrfHeader]: csrf
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('주문 이력 삭제 실패');
+                        }
+                        alert('주문 이력이 삭제되었습니다.');
+                        window.location.reload();
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('주문 이력 삭제 중 오류가 발생했습니다: ' + error.message);
+                    });
+                }
+            }
+        });
+    });
 } 

@@ -130,8 +130,17 @@ public class OrderAdminService {
      */
     @Transactional(readOnly = true)
     public Order getOrderDetails(Long id) {
-        return orderRepository.findByIdWithDetails(id)
+        // 먼저 items와 함께 주문을 조회합니다
+        Order order = orderRepository.findByIdWithItemsOnly(id)
                 .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다: " + id));
+        
+        // 그 후 history를 조회합니다
+        orderRepository.findByIdWithHistory(id).ifPresent(orderWithHistory -> {
+            // 이미 로드된 주문 객체에 history 컬렉션을 설정합니다
+            order.setHistory(orderWithHistory.getHistory());
+        });
+        
+        return order;
     }
 
     /**

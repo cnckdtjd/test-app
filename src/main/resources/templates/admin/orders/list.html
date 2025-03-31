@@ -110,20 +110,17 @@
                                 <td th:text="${#temporals.format(order.createdAt, 'yyyy-MM-dd HH:mm')}">2023-01-01 12:00</td>
                                 <td>
                                     <div class="btn-group btn-group-sm" role="group">
-                                        <a th:href="@{'/admin/orders/' + ${order.id}}" class="btn btn-primary">
-                                            <i class="bi bi-eye"></i>
-                                        </a>
-                                        <button th:if="${order.status.name() == 'SHIPPING'}" 
-                                                class="btn btn-success complete-order-btn" 
+                                        <button class="btn btn-primary complete-order-btn" 
                                                 th:data-order-id="${order.id}"
+                                                th:disabled="${order.status.name() == 'COMPLETED' || order.status.name() == 'CANCELLED' || order.status.name() == 'DELETED'}"
                                                 title="배송완료 처리">
-                                            <i class="bi bi-check-circle"></i>
+                                            <i class="bi bi-truck"></i>
                                         </button>
                                         <button th:if="${order.status.name() == 'PENDING' || order.status.name() == 'PAID'}" 
                                                 class="btn btn-danger cancel-order-btn" 
                                                 th:data-order-id="${order.id}"
                                                 title="주문취소">
-                                            <i class="bi bi-x-circle"></i>
+                                            <i class="bi bi-x-octagon-fill"></i>
                                         </button>
                                         <button th:if="${order.status.name() != 'DELETED'}" 
                                                 class="btn btn-secondary delete-order-btn" 
@@ -131,6 +128,9 @@
                                                 title="이력삭제">
                                             <i class="bi bi-trash"></i>
                                         </button>
+                                        <a th:href="@{'/admin/orders/' + ${order.id}}" class="btn btn-info" title="상세보기">
+                                            <i class="bi bi-list-ul"></i>
+                                        </a>
                                     </div>
                                 </td>
                             </tr>
@@ -180,128 +180,6 @@
     <!-- 페이지별 스크립트 -->
     <th:block layout:fragment="scripts">
         <script th:src="@{/js/admin/order.js}"></script>
-        <script>
-            document.addEventListener('DOMContentLoaded', function() {
-                // 주문 취소 버튼 이벤트
-                const cancelButtons = document.querySelectorAll('.cancel-order-btn');
-                
-                cancelButtons.forEach(button => {
-                    button.addEventListener('click', function() {
-                        const orderId = this.getAttribute('data-order-id');
-                        if (confirm('정말로 이 주문을 취소하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
-                            // 취소 사유 입력 받기
-                            const cancelReason = prompt('주문 취소 사유를 입력해주세요:', '관리자에 의한 주문 취소');
-                            
-                            if (cancelReason) {
-                                // 주문 취소 요청 보내기
-                                const formData = new FormData();
-                                formData.append('cancelReason', cancelReason);
-                                
-                                const csrf = document.querySelector('meta[name="_csrf"]').getAttribute('content');
-                                const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
-                                
-                                fetch(`/admin/orders/${orderId}/cancel`, {
-                                    method: 'POST',
-                                    body: formData,
-                                    headers: {
-                                        [csrfHeader]: csrf
-                                    }
-                                })
-                                .then(response => {
-                                    if (!response.ok) {
-                                        throw new Error('주문 취소 실패');
-                                    }
-                                    alert('주문이 취소되었습니다.');
-                                    // 페이지 새로고침
-                                    window.location.reload();
-                                })
-                                .catch(error => {
-                                    console.error('Error:', error);
-                                    alert('주문 취소 중 오류가 발생했습니다: ' + error.message);
-                                });
-                            }
-                        }
-                    });
-                });
-                
-                // 주문 이력 삭제 버튼 이벤트
-                const deleteButtons = document.querySelectorAll('.delete-order-btn');
-                
-                deleteButtons.forEach(button => {
-                    button.addEventListener('click', function() {
-                        const orderId = this.getAttribute('data-order-id');
-                        
-                        const deleteReason = prompt('주문 이력 삭제 이유를 입력해주세요:', '관리자에 의한 이력 삭제');
-                        
-                        if (deleteReason) {
-                            // 주문 이력 삭제 요청 보내기
-                            const formData = new FormData();
-                            formData.append('deleteReason', deleteReason);
-                            
-                            const csrf = document.querySelector('meta[name="_csrf"]').getAttribute('content');
-                            const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
-                            
-                            fetch(`/admin/orders/${orderId}/delete`, {
-                                method: 'POST',
-                                body: formData,
-                                headers: {
-                                    [csrfHeader]: csrf
-                                }
-                            })
-                            .then(response => {
-                                if (!response.ok) {
-                                    throw new Error('주문 이력 삭제 실패');
-                                }
-                                alert('주문 이력이 삭제되었습니다.');
-                                // 페이지 새로고침
-                                window.location.reload();
-                            })
-                            .catch(error => {
-                                console.error('Error:', error);
-                                alert('주문 이력 삭제 중 오류가 발생했습니다: ' + error.message);
-                            });
-                        }
-                    });
-                });
-                
-                // 배송완료 버튼 이벤트
-                const completeButtons = document.querySelectorAll('.complete-order-btn');
-                
-                completeButtons.forEach(button => {
-                    button.addEventListener('click', function() {
-                        const orderId = this.getAttribute('data-order-id');
-                        if (confirm('이 주문을 배송완료 처리하시겠습니까?')) {
-                            // 배송완료 처리 요청 보내기
-                            const formData = new FormData();
-                            formData.append('status', 'COMPLETED');
-                            
-                            const csrf = document.querySelector('meta[name="_csrf"]').getAttribute('content');
-                            const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
-                            
-                            fetch(`/admin/orders/${orderId}/status`, {
-                                method: 'POST',
-                                body: formData,
-                                headers: {
-                                    [csrfHeader]: csrf
-                                }
-                            })
-                            .then(response => {
-                                if (!response.ok) {
-                                    throw new Error('배송완료 처리 실패');
-                                }
-                                alert('주문이 배송완료 처리되었습니다.');
-                                // 페이지 새로고침
-                                window.location.reload();
-                            })
-                            .catch(error => {
-                                console.error('Error:', error);
-                                alert('배송완료 처리 중 오류가 발생했습니다: ' + error.message);
-                            });
-                        }
-                    });
-                });
-            });
-        </script>
     </th:block>
 </body>
 </html> 

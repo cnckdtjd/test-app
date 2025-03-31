@@ -74,7 +74,16 @@ public interface OrderRepository extends JpaRepository<Order, Long> {
     @Query("SELECT SUM(o.totalAmount) FROM Order o WHERE o.createdAt BETWEEN :startDate AND :endDate")
     Double sumTotalAmountByCreatedAtBetween(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
     
+    // MultipleBagFetchException 방지를 위해 분리된 메서드
+    @Query("SELECT o FROM Order o LEFT JOIN FETCH o.items WHERE o.id = :id")
+    Optional<Order> findByIdWithItemsOnly(@Param("id") Long id);
+    
+    @Query("SELECT o FROM Order o LEFT JOIN FETCH o.history WHERE o.id = :id")
+    Optional<Order> findByIdWithHistory(@Param("id") Long id);
+    
+    // 이전 메서드 - 오류 발생 (삭제 예정)
     @Query("SELECT o FROM Order o LEFT JOIN FETCH o.items LEFT JOIN FETCH o.history WHERE o.id = :id")
+    @Deprecated
     Optional<Order> findByIdWithDetails(@Param("id") Long id);
 
     // 삭제되지 않은 주문만 조회
