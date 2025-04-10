@@ -46,3 +46,6 @@ tasks.named('test') {
 tasks.named('compileTestJava') {
     enabled = false
 }
+tasks.named('jar') {
+    enabled = false
+}
