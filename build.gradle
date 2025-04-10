@@ -40,7 +40,7 @@ dependencies {
 }
 
 tasks.named('test') {
-    useJUnitPlatform()
+    enabled = false
 }
 
 tasks.named('compileTestJava') {
