@@ -5,12 +5,13 @@ spring:
     allow-circular-references: true
   datasource:
     url: jdbc:mariadb://mariadb:3306/testapp
-    username: root
+    username: ck
     password: "vmware1!"
     driver-class-name: org.mariadb.jdbc.Driver
   jpa:
     hibernate:
-      ddl-auto: update
+      # ddl-auto: update
+      ddl-auto: create-drop
     show-sql: true
     properties:
       hibernate:
