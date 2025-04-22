@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.security.Principal;
+import java.util.function.Consumer;
 
 @Controller
 @RequestMapping("/cart")
@@ -32,8 +33,7 @@ public class CartController {
             return "redirect:/login";
         }
 
-        User user = userService.findByUsername(principal.getName())
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
+        User user = getUserFromPrincipal(principal);
         Cart cart = cartService.getCart(user);
 
         model.addAttribute("cart", cart);
@@ -52,17 +52,9 @@ public class CartController {
             Principal principal,
             RedirectAttributes redirectAttributes) {
         
-        try {
-            User user = userService.findByUsername(principal.getName())
-                    .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
-            
-            cartService.addProductToCart(user, productId, quantity);
-            redirectAttributes.addFlashAttribute("successMessage", "상품이 장바구니에 추가되었습니다");
-        } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
-        }
-        
-        return "redirect:/products";
+        return executeCartOperation(principal, redirectAttributes, user -> 
+            cartService.addProductToCart(user, productId, quantity),
+            "상품이 장바구니에 추가되었습니다", "redirect:/products");
     }
     
     // 장바구니에서 상품 제거
@@ -72,17 +64,9 @@ public class CartController {
             Principal principal,
             RedirectAttributes redirectAttributes) {
         
-        try {
-            User user = userService.findByUsername(principal.getName())
-                    .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
-            
-            cartService.removeProductFromCart(user, productId);
-            redirectAttributes.addFlashAttribute("successMessage", "상품이 장바구니에서 제거되었습니다");
-        } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
-        }
-        
-        return "redirect:/cart";
+        return executeCartOperation(principal, redirectAttributes, user -> 
+            cartService.removeProductFromCart(user, productId),
+            "상품이 장바구니에서 제거되었습니다", "redirect:/cart");
     }
     
     // 장바구니 상품 수량 업데이트
@@ -93,17 +77,9 @@ public class CartController {
             Principal principal,
             RedirectAttributes redirectAttributes) {
         
-        try {
-            User user = userService.findByUsername(principal.getName())
-                    .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
-            
-            cartService.updateProductQuantity(user, productId, quantity);
-            redirectAttributes.addFlashAttribute("successMessage", "장바구니가 업데이트되었습니다");
-        } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
-        }
-        
-        return "redirect:/cart";
+        return executeCartOperation(principal, redirectAttributes, user -> 
+            cartService.updateProductQuantity(user, productId, quantity),
+            "장바구니가 업데이트되었습니다", "redirect:/cart");
     }
     
     // 장바구니 비우기
@@ -112,16 +88,37 @@ public class CartController {
             Principal principal,
             RedirectAttributes redirectAttributes) {
         
-        try {
-            User user = userService.findByUsername(principal.getName())
-                    .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
+        return executeCartOperation(principal, redirectAttributes, user -> 
+            cartService.clearCart(user),
+            "장바구니가 비워졌습니다", "redirect:/cart");
+    }
+    
+    // 중복 코드 제거를 위한 헬퍼 메서드
+    private User getUserFromPrincipal(Principal principal) {
+        return userService.findByUsername(principal.getName())
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
+    }
+    
+    // 카트 작업 실행 및 예외 처리를 위한 공통 메서드
+    private String executeCartOperation(
+            Principal principal, 
+            RedirectAttributes redirectAttributes,
+            Consumer<User> operation,
+            String successMessage,
+            String redirectUrl) {
             
-            cartService.clearCart(user);
-            redirectAttributes.addFlashAttribute("successMessage", "장바구니가 비워졌습니다");
+        if (principal == null) {
+            return "redirect:/login";
+        }
+        
+        try {
+            User user = getUserFromPrincipal(principal);
+            operation.accept(user);
+            redirectAttributes.addFlashAttribute("successMessage", successMessage);
         } catch (Exception e) {
             redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
         }
         
-        return "redirect:/cart";
+        return redirectUrl;
     }
 } 

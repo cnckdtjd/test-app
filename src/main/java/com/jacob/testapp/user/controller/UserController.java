@@ -12,6 +12,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.security.Principal;
 import java.time.LocalDateTime;
+import java.util.function.Supplier;
 
 @Controller
 @RequestMapping("/users")
@@ -22,28 +23,17 @@ public class UserController {
 
     @GetMapping("/profile")
     public String profile(Principal principal, Model model) {
-        String currentUsername = principal.getName();
-
-        // 현재 사용자의 아이디로 사용자 정보를 조회
-        User user = userService.findByUsername(currentUsername)
-                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
-
-        // 조회한 정보를 모델에 추가
+        User user = getCurrentUser(principal);
         model.addAttribute("user", user);
-
         return "users/profile";
     }
 
     @PostMapping("/profile")
     public String updateProfile(@ModelAttribute User user, Principal principal, RedirectAttributes redirectAttributes) {
-        try {
+        return handleUserOperation(() -> {
             userService.updateUser(user, principal);
-            redirectAttributes.addFlashAttribute("successMessage", "프로필이 성공적으로 수정되었습니다.");
-            return "redirect:/users/profile";
-        } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("errorMessage", e.getMessage());
-            return "redirect:/users/profile";
-        }
+            return "프로필이 성공적으로 수정되었습니다.";
+        }, redirectAttributes, "/users/profile");
     }
 
     @GetMapping("/register")
@@ -66,28 +56,19 @@ public class UserController {
             return "user/register";
         }
         
-        try {
-            // 사용자 상태 초기화
-            user.setStatus(User.Status.ACTIVE);
-            user.setEnabled(true);
-            user.setLoginAttempts(0);
-            user.setAccountLocked(false);
-            user.setLastLoginAt(LocalDateTime.now());
-
-            // 사용자 등록
+        return handleUserOperation(() -> {
+            initializeNewUser(user);
             userService.register(user);
-            redirectAttributes.addFlashAttribute("successMessage", "회원가입이 완료되었습니다. 로그인해주세요.");
-            return "redirect:/login";
-        } catch (IllegalArgumentException e) {
-            result.rejectValue("username", "error.user", e.getMessage());
+            return "회원가입이 완료되었습니다. 로그인해주세요.";
+        }, redirectAttributes, "/login", error -> {
+            result.rejectValue("username", "error.user", error.getMessage());
             return "user/register";
-        }
+        });
     }
 
     @GetMapping("/edit")
     public String editProfile(Principal principal, Model model) {
-        User user = userService.findByUsername(principal.getName())
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        User user = getCurrentUser(principal);
         model.addAttribute("user", user);
         return "user/edit";
     }
@@ -101,22 +82,75 @@ public class UserController {
             return "user/edit";
         }
         
-        User existingUser = userService.findByUsername(principal.getName())
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-        
-        // 기존 사용자 정보 업데이트
-        existingUser.setName(user.getName());
-        existingUser.setEmail(user.getEmail());
-        existingUser.setPhone(user.getPhone());
-        existingUser.setAddress(user.getAddress());
+        return handleUserOperation(() -> {
+            User existingUser = getCurrentUser(principal);
+            updateUserFields(existingUser, user);
+            userService.save(existingUser);
+            return "Profile updated successfully";
+        }, redirectAttributes, "/users/profile");
+    }
+    
+    // ========== 헬퍼 메서드 ==========
+    
+    /**
+     * 현재 로그인한 사용자 정보 조회
+     */
+    private User getCurrentUser(Principal principal) {
+        return userService.findByUsername(principal.getName())
+                .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
+    }
+    
+    /**
+     * 새 사용자 초기화
+     */
+    private void initializeNewUser(User user) {
+        user.setStatus(User.Status.ACTIVE);
+        user.setEnabled(true);
+        user.setLoginAttempts(0);
+        user.setAccountLocked(false);
+        user.setLastLoginAt(LocalDateTime.now());
+    }
+    
+    /**
+     * 사용자 필드 업데이트
+     */
+    private void updateUserFields(User existingUser, User updatedUser) {
+        existingUser.setName(updatedUser.getName());
+        existingUser.setEmail(updatedUser.getEmail());
+        existingUser.setPhone(updatedUser.getPhone());
+        existingUser.setAddress(updatedUser.getAddress());
         
         // 비밀번호가 입력된 경우에만 업데이트
-        if (user.getPassword() != null && !user.getPassword().isEmpty()) {
-            existingUser.setPassword(user.getPassword());
+        if (updatedUser.getPassword() != null && !updatedUser.getPassword().isEmpty()) {
+            existingUser.setPassword(updatedUser.getPassword());
         }
-        
-        userService.save(existingUser);
-        redirectAttributes.addFlashAttribute("successMessage", "Profile updated successfully");
-        return "redirect:/users/profile";
+    }
+    
+    /**
+     * 사용자 작업 처리 및 리다이렉트
+     */
+    private String handleUserOperation(Supplier<String> operation, 
+                                      RedirectAttributes redirectAttributes, 
+                                      String redirectUrl) {
+        return handleUserOperation(operation, redirectAttributes, redirectUrl, error -> {
+            redirectAttributes.addFlashAttribute("errorMessage", error.getMessage());
+            return "redirect:" + redirectUrl;
+        });
+    }
+    
+    /**
+     * 사용자 작업 처리 및 리다이렉트 (에러 핸들러 포함)
+     */
+    private String handleUserOperation(Supplier<String> operation, 
+                                      RedirectAttributes redirectAttributes, 
+                                      String redirectUrl,
+                                      java.util.function.Function<Exception, String> errorHandler) {
+        try {
+            String successMessage = operation.get();
+            redirectAttributes.addFlashAttribute("successMessage", successMessage);
+            return "redirect:" + redirectUrl;
+        } catch (Exception e) {
+            return errorHandler.apply(e);
+        }
     }
 } 

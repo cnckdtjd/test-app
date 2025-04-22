@@ -13,17 +13,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * 주문 엔티티
+ * 사용자의 주문 정보와 주문 상품 목록을 관리
+ */
 @Entity
 @Table(name = "orders")
-@Data
+@Getter
+@Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Order {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class Order extends BaseEntity {
 
     @Column(name = "order_number", unique = true, nullable = false)
     private String orderNumber;
@@ -36,6 +37,7 @@ public class Order {
     @Column(nullable = false)
     private OrderStatus status;
 
+    @Builder.Default
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderItem> items = new ArrayList<>();
 
@@ -87,20 +89,13 @@ public class Order {
     @Column(nullable = false)
     private Double discountAmount;
 
+    @Builder.Default
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<OrderHistory> history = new ArrayList<>();
 
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
-
-    @Version
-    private Long version;
-
+    /**
+     * 주문 상태 열거형
+     */
     @Getter
     public enum OrderStatus {
         PENDING("결제대기"),
@@ -115,41 +110,92 @@ public class Order {
         OrderStatus(String displayName) {
             this.displayName = displayName;
         }
-
-        public String getDisplayName() {
-            return displayName;
-        }
     }
 
+    /**
+     * 엔티티 생성 전 실행되는 메서드
+     * 주문번호가 없는 경우 자동 생성
+     */
     @PrePersist
     public void prePersist() {
         if (orderNumber == null) {
             orderNumber = UUID.randomUUID().toString().replace("-", "").substring(0, 16).toUpperCase();
         }
+        
+        // 초기 값이 null일 경우 기본값 설정
+        if (subtotalAmount == null) subtotalAmount = 0.0;
+        if (shippingAmount == null) shippingAmount = 0.0;
+        if (discountAmount == null) discountAmount = 0.0;
+        if (totalAmount == null) recalculateTotalAmount();
     }
 
+    /**
+     * 주문에 상품 추가
+     * @param item 추가할 주문 상품
+     */
     public void addItem(OrderItem item) {
         items.add(item);
         item.setOrder(this);
         recalculateTotalAmount();
     }
 
+    /**
+     * 주문에서 상품 제거
+     * @param item 제거할 주문 상품
+     */
     public void removeItem(OrderItem item) {
         items.remove(item);
         item.setOrder(null);
         recalculateTotalAmount();
     }
 
-    private void recalculateTotalAmount() {
-        totalAmount = items.stream()
-                .mapToDouble(item -> item.getPrice() * item.getQuantity())
-                .sum();
+    /**
+     * 주문 상태 변경
+     * @param newStatus 변경할 상태
+     * @param createdBy 변경자
+     * @param memo 변경 메모
+     */
+    public OrderHistory changeStatus(OrderStatus newStatus, String createdBy, String memo) {
+        OrderStatus oldStatus = this.status;
+        this.status = newStatus;
+        
+        OrderHistory historyEntry = OrderHistory.createHistory(this, oldStatus, newStatus, createdBy, memo);
+        this.history.add(historyEntry);
+        
+        return historyEntry;
+    }
+    
+    /**
+     * 주문 취소 가능 여부 확인
+     * @return 취소 가능하면 true
+     */
+    public boolean isCancellable() {
+        return this.status == OrderStatus.PENDING || this.status == OrderStatus.PAID;
+    }
+    
+    /**
+     * 주문 삭제 가능 여부 확인
+     * @return 삭제 가능하면 true
+     */
+    public boolean isDeletable() {
+        return this.status != OrderStatus.SHIPPING && this.status != OrderStatus.COMPLETED;
+    }
+
+    /**
+     * 주문 총액 다시 계산
+     */
+    public void recalculateTotalAmount() {
+        if (items != null && !items.isEmpty()) {
+            double itemsTotal = items.stream()
+                    .mapToDouble(OrderItem::getTotalPrice)
+                    .sum();
+            
+            this.subtotalAmount = itemsTotal;
+        }
         
         // 배송비와 할인액 적용
-        if (subtotalAmount == null) subtotalAmount = totalAmount;
-        if (shippingAmount == null) shippingAmount = 0.0;
-        if (discountAmount == null) discountAmount = 0.0;
-        
-        totalAmount = subtotalAmount + shippingAmount - discountAmount;
+        this.totalAmount = (subtotalAmount != null ? subtotalAmount : 0.0) 
+                         + (shippingAmount != null ? shippingAmount : 0.0) 
+                         - (discountAmount != null ? discountAmount : 0.0);
     }
 } 

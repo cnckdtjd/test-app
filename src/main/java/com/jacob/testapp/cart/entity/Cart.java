@@ -14,6 +14,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Entity
 @Table(name = "carts")
@@ -49,74 +50,84 @@ public class Cart {
     @Version
     private Long version;
 
-    public void addItem(CartItem item) {
-        cartItems.add(item);
-        item.setCart(this);
+    /**
+     * 장바구니에 상품 추가
+     */
+    public void addProduct(Product product, int quantity) {
+        findCartItem(product.getId())
+            .ifPresentOrElse(
+                // 이미 존재하는 경우 수량 증가
+                item -> item.setQuantity(item.getQuantity() + quantity),
+                // 존재하지 않는 경우 새 항목 추가
+                () -> {
+                    CartItem cartItem = CartItem.builder()
+                        .cart(this)
+                        .product(product)
+                        .quantity(quantity)
+                        .build();
+                    cartItems.add(cartItem);
+                }
+            );
         recalculateTotalPrice();
     }
-
-    public void removeItem(CartItem item) {
-        cartItems.remove(item);
-        item.setCart(null);
+    
+    /**
+     * 장바구니에서 상품 제거
+     */
+    public void removeProduct(Long productId) {
+        cartItems.removeIf(item -> item.getProduct().getId().equals(productId));
         recalculateTotalPrice();
     }
-
+    
+    /**
+     * 상품 수량 업데이트
+     */
+    public void updateProductQuantity(Long productId, int quantity) {
+        if (quantity <= 0) {
+            removeProduct(productId);
+            return;
+        }
+        
+        findCartItem(productId).ifPresent(item -> {
+            item.setQuantity(quantity);
+            recalculateTotalPrice();
+        });
+    }
+    
+    /**
+     * 장바구니 비우기
+     */
     public void clear() {
         cartItems.clear();
         totalPrice = BigDecimal.ZERO;
     }
 
+    /**
+     * 총 가격 다시 계산
+     */
     public void recalculateTotalPrice() {
-        totalPrice = cartItems.stream()
-                .map(item -> item.getProduct().getPrice().multiply(BigDecimal.valueOf(item.getQuantity())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        totalPrice = BigDecimal.valueOf(
+            cartItems.stream()
+                .mapToDouble(CartItem::getTotalPrice)
+                .sum()
+        );
     }
 
-    public double getTotalPrice() {
-        return cartItems.stream()
-                .mapToDouble(item -> item.getProduct().getPrice().doubleValue() * item.getQuantity())
-                .sum();
-    }
-
+    /**
+     * 총 수량 계산
+     */
     public int getTotalQuantity() {
         return cartItems.stream()
                 .mapToInt(CartItem::getQuantity)
                 .sum();
     }
-
-    public void addProduct(Product product, int quantity) {
-        CartItem existingItem = findCartItem(product.getId());
-        
-        if (existingItem != null) {
-            existingItem.setQuantity(existingItem.getQuantity() + quantity);
-        } else {
-            CartItem cartItem = new CartItem();
-            cartItem.setCart(this);
-            cartItem.setProduct(product);
-            cartItem.setQuantity(quantity);
-            cartItems.add(cartItem);
-        }
-    }
     
-    public void removeProduct(Long productId) {
-        cartItems.removeIf(item -> item.getProduct().getId().equals(productId));
-    }
-    
-    public void updateProductQuantity(Long productId, int quantity) {
-        CartItem cartItem = findCartItem(productId);
-        if (cartItem != null) {
-            if (quantity <= 0) {
-                removeProduct(productId);
-            } else {
-                cartItem.setQuantity(quantity);
-            }
-        }
-    }
-    
-    private CartItem findCartItem(Long productId) {
+    /**
+     * ID로 장바구니 항목 찾기
+     */
+    private Optional<CartItem> findCartItem(Long productId) {
         return cartItems.stream()
                 .filter(item -> item.getProduct().getId().equals(productId))
-                .findFirst()
-                .orElse(null);
+                .findFirst();
     }
 } 

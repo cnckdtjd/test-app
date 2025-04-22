@@ -1,7 +1,6 @@
 package com.jacob.testapp.admin.controller;
 
 import com.jacob.testapp.admin.service.OrderAdminService;
-import com.jacob.testapp.admin.service.ProductAdminService;
 import com.jacob.testapp.admin.service.StatisticsService;
 import com.jacob.testapp.admin.service.SystemMonitorService;
 import com.jacob.testapp.admin.service.TestDataService;
@@ -10,6 +9,7 @@ import com.jacob.testapp.order.entity.Order;
 import com.jacob.testapp.product.entity.Product;
 import com.jacob.testapp.user.entity.User;
 import com.jacob.testapp.order.service.OrderService;
+import com.jacob.testapp.product.service.ProductManagementService;
 import com.jacob.testapp.product.service.ProductService;
 import com.jacob.testapp.user.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -36,6 +36,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.text.NumberFormat;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.function.Supplier;
 
 @Slf4j
 @Controller
@@ -51,7 +52,7 @@ public class AdminController {
     private final TestDataService testDataService;
     private final StatisticsService statisticsService;
     private final UserExportService userExportService;
-    private final ProductAdminService productAdminService;
+    private final ProductManagementService productManagementService;
 
     /**
      * 모든 관리자 컨트롤러 메소드에 requestURI 모델 속성을 자동으로 추가합니다.
@@ -70,25 +71,9 @@ public class AdminController {
         log.info("관리자 대시보드 페이지 요청");
         
         try {
-            // 사용자 통계
-            long userCount = userService.countUsers();
-            model.addAttribute("userCount", userCount);
-            
-            // 상품 통계
-            long productCount = productService.countProducts();
-            model.addAttribute("productCount", productCount);
-            
-            // 주문 통계 (OrderAdminService에서 가져오기)
-            Map<String, Object> orderStats = orderAdminService.getOrderStatistics();
-            long orderCount = (long) orderStats.getOrDefault("totalOrders", 0L);
-            Double totalSales = (Double) orderStats.getOrDefault("totalSales", 0.0);
-            
-            model.addAttribute("orderCount", orderCount);
-            model.addAttribute("totalSales", totalSales);
-            
-            // 시스템 자원 사용량 정보
-            Map<String, Object> systemResources = systemMonitorService.getSystemResources();
-            model.addAttribute("systemResources", systemResources);
+            // 대시보드 통계 데이터를 얻어옴
+            Map<String, Object> stats = getDashboardStatistics();
+            model.addAllAttributes(stats);
             
             return "admin/dashboard";
         } catch (Exception e) {
@@ -107,32 +92,49 @@ public class AdminController {
         log.info("대시보드 통계 데이터 API 요청");
         
         try {
-            Map<String, Object> stats = new HashMap<>();
+            Map<String, Object> stats = getDashboardStatistics();
             
-            // 사용자 통계
-            long userCount = userService.countUsers();
-            stats.put("userCount", userCount);
-            
-            // 상품 통계
-            long productCount = productService.countProducts();
-            stats.put("productCount", productCount);
-            
-            // 주문 통계 (OrderAdminService에서 가져오기)
-            Map<String, Object> orderStats = orderAdminService.getOrderStatistics();
-            long orderCount = (long) orderStats.getOrDefault("totalOrders", 0L);
-            Double totalSales = (Double) orderStats.getOrDefault("totalSales", 0.0);
-            
-            stats.put("orderCount", orderCount);
-            
-            // 총 매출 포맷팅
-            NumberFormat formatter = NumberFormat.getCurrencyInstance(Locale.KOREA);
-            stats.put("totalSales", formatter.format(totalSales));
+            // API 응답용 추가 포맷팅 - 총 매출 통화 형식으로 변환
+            if (stats.containsKey("totalSales")) {
+                Double totalSales = (Double) stats.get("totalSales");
+                NumberFormat formatter = NumberFormat.getCurrencyInstance(Locale.KOREA);
+                stats.put("totalSales", formatter.format(totalSales));
+            }
             
             return ResponseEntity.ok(stats);
         } catch (Exception e) {
             log.error("대시보드 통계 데이터 API 요청 처리 중 오류", e);
             return ResponseEntity.internalServerError().build();
         }
+    }
+    
+    /**
+     * 대시보드 통계 데이터를 얻는 내부 메서드
+     */
+    private Map<String, Object> getDashboardStatistics() {
+        Map<String, Object> stats = new HashMap<>();
+        
+        // 사용자 통계
+        long userCount = userService.countUsers();
+        stats.put("userCount", userCount);
+        
+        // 상품 통계
+        long productCount = productService.countProducts();
+        stats.put("productCount", productCount);
+        
+        // 주문 통계 (OrderAdminService에서 가져오기)
+        Map<String, Object> orderStats = orderAdminService.getOrderStatistics();
+        long orderCount = (long) orderStats.getOrDefault("totalOrders", 0L);
+        Double totalSales = (Double) orderStats.getOrDefault("totalSales", 0.0);
+        
+        stats.put("orderCount", orderCount);
+        stats.put("totalSales", totalSales);
+        
+        // 시스템 자원 사용량 정보
+        Map<String, Object> systemResources = systemMonitorService.getSystemResources();
+        stats.put("systemResources", systemResources);
+        
+        return stats;
     }
 
     /**
@@ -169,21 +171,27 @@ public class AdminController {
 
     @PostMapping("/users/{id}/lock")
     public String lockUser(@PathVariable Long id, RedirectAttributes redirectAttributes) {
-        User user = userService.findById(id);
-        
-        userService.lockAccount(user.getUsername());
-        redirectAttributes.addFlashAttribute("successMessage", "사용자 계정이 잠금 처리되었습니다.");
-
-        return "redirect:/admin/users/" + id;
+        return updateUserAccountStatus(id, true, "사용자 계정이 잠금 처리되었습니다.", redirectAttributes);
     }
 
     @PostMapping("/users/{id}/unlock")
     public String unlockUser(@PathVariable Long id, RedirectAttributes redirectAttributes) {
+        return updateUserAccountStatus(id, false, "사용자 계정 잠금이 해제되었습니다.", redirectAttributes);
+    }
+    
+    /**
+     * 사용자 계정 잠금 상태를 업데이트하는 내부 메서드
+     */
+    private String updateUserAccountStatus(Long id, boolean lockAccount, String successMessage, RedirectAttributes redirectAttributes) {
         User user = userService.findById(id);
         
-        userService.unlockAccount(user.getUsername());
-        redirectAttributes.addFlashAttribute("successMessage", "사용자 계정 잠금이 해제되었습니다.");
-
+        if (lockAccount) {
+            userService.lockAccount(user.getUsername());
+        } else {
+            userService.unlockAccount(user.getUsername());
+        }
+        
+        redirectAttributes.addFlashAttribute("successMessage", successMessage);
         return "redirect:/admin/users/" + id;
     }
     
@@ -218,9 +226,7 @@ public class AdminController {
         try {
             User user = userService.findById(id);
             Long newBalance = user.getCashBalance() + amount;
-            user.setCashBalance(newBalance);
-            userService.save(user);
-            redirectAttributes.addFlashAttribute("successMessage", amount + "원이 충전되었습니다. 현재 잔액: " + newBalance + "원");
+            updateUserCashBalance(user, newBalance, amount + "원이 충전되었습니다. 현재 잔액: " + newBalance + "원", redirectAttributes);
         } catch (Exception e) {
             log.error("사용자 잔액 충전 중 오류 발생: {}", e.getMessage(), e);
             redirectAttributes.addFlashAttribute("errorMessage", "현금 잔액 충전 중 오류가 발생했습니다.");
@@ -242,15 +248,22 @@ public class AdminController {
                 redirectAttributes.addFlashAttribute("errorMessage", "차감하려는 금액(" + amount + "원)이 현재 잔액(" + user.getCashBalance() + "원)보다 큽니다.");
             } else {
                 Long newBalance = user.getCashBalance() - amount;
-                user.setCashBalance(newBalance);
-                userService.save(user);
-                redirectAttributes.addFlashAttribute("successMessage", amount + "원이 차감되었습니다. 현재 잔액: " + newBalance + "원");
+                updateUserCashBalance(user, newBalance, amount + "원이 차감되었습니다. 현재 잔액: " + newBalance + "원", redirectAttributes);
             }
         } catch (Exception e) {
             log.error("사용자 잔액 차감 중 오류 발생: {}", e.getMessage(), e);
             redirectAttributes.addFlashAttribute("errorMessage", "현금 잔액 차감 중 오류가 발생했습니다.");
         }
         return "redirect:/admin/users/" + id;
+    }
+    
+    /**
+     * 사용자 현금 잔액을 업데이트하는 내부 메서드
+     */
+    private void updateUserCashBalance(User user, Long newBalance, String successMessage, RedirectAttributes redirectAttributes) {
+        user.setCashBalance(newBalance);
+        userService.save(user);
+        redirectAttributes.addFlashAttribute("successMessage", successMessage);
     }
     
     /**
@@ -338,7 +351,7 @@ public class AdminController {
         }
         
         // 검색 조건에 따라 상품 조회
-        Page<Product> products = productAdminService.searchProducts(keyword, categoryEnum, statusEnum, pageable);
+        Page<Product> products = productManagementService.searchProducts(keyword, categoryEnum, statusEnum, pageable);
         
         model.addAttribute("products", products);
         model.addAttribute("categories", Product.Category.values());
@@ -367,18 +380,8 @@ public class AdminController {
             return "admin/products/create";
         }
         
-        // 상품을 저장
-        try {
-            Product savedProduct = productAdminService.saveProduct(product);
-            log.info("상품 등록 완료: ID = {}", savedProduct.getId());
-            redirectAttributes.addFlashAttribute("successMessage", "상품이 성공적으로 등록되었습니다.");
-            return "redirect:/admin/products";
-        } catch (Exception e) {
-            log.error("상품 등록 중 오류 발생", e);
-            model.addAttribute("errorMessage", "상품 등록 중 오류가 발생했습니다: " + e.getMessage());
-            model.addAttribute("categories", Product.Category.values());
-            return "admin/products/create";
-        }
+        return processProductSave(product, "상품이 성공적으로 등록되었습니다.", "상품 등록 중 오류가 발생했습니다", 
+                "admin/products/create", model, redirectAttributes);
     }
 
     @GetMapping("/products/{id}/edit")
@@ -402,7 +405,7 @@ public class AdminController {
                                BindingResult result, 
                                Model model,
                                RedirectAttributes redirectAttributes) {
-        log.info("상품 수정 요청: ID = {}", id);
+        log.info("상품 수정 요청: ID = {}, 이름 = {}", id, product.getName());
         
         if (result.hasErrors()) {
             log.warn("상품 수정 폼 유효성 검사 실패: {}", result.getAllErrors());
@@ -410,25 +413,25 @@ public class AdminController {
             return "admin/products/edit";
         }
         
+        return processProductSave(product, "상품이 성공적으로 수정되었습니다.", "상품 수정 중 오류가 발생했습니다", 
+                "admin/products/edit", model, redirectAttributes);
+    }
+    
+    /**
+     * 상품 저장 처리를 위한 공통 메서드
+     */
+    private String processProductSave(Product product, String successMessage, String errorMessage, 
+                                     String errorViewName, Model model, RedirectAttributes redirectAttributes) {
         try {
-            // ID가 일치하는지 확인
-            if (!id.equals(product.getId())) {
-                log.warn("상품 ID 불일치: URL ID = {}, 폼 ID = {}", id, product.getId());
-                redirectAttributes.addFlashAttribute("errorMessage", "상품 ID가 일치하지 않습니다.");
-                return "redirect:/admin/products";
-            }
-            
-            // 상품 업데이트
-            Product updatedProduct = productAdminService.saveProduct(product);
-            log.info("상품 수정 완료: ID = {}", updatedProduct.getId());
-            
-            redirectAttributes.addFlashAttribute("successMessage", "상품이 성공적으로 수정되었습니다.");
+            Product savedProduct = productManagementService.saveProduct(product);
+            log.info("상품 저장 완료: ID = {}", savedProduct.getId());
+            redirectAttributes.addFlashAttribute("successMessage", successMessage);
             return "redirect:/admin/products";
         } catch (Exception e) {
-            log.error("상품 수정 중 오류 발생", e);
-            model.addAttribute("errorMessage", "상품 수정 중 오류가 발생했습니다: " + e.getMessage());
+            log.error("상품 저장 중 오류 발생", e);
+            model.addAttribute("errorMessage", errorMessage + ": " + e.getMessage());
             model.addAttribute("categories", Product.Category.values());
-            return "admin/products/edit";
+            return errorViewName;
         }
     }
 
@@ -437,8 +440,7 @@ public class AdminController {
         log.info("상품 삭제 요청: ID = {}", id);
         
         try {
-            productAdminService.deleteProduct(id);
-            log.info("상품 삭제 완료: ID = {}", id);
+            productManagementService.deleteProduct(id);
             redirectAttributes.addFlashAttribute("successMessage", "상품이 성공적으로 삭제되었습니다.");
         } catch (Exception e) {
             log.error("상품 삭제 중 오류 발생: ID = {}", id, e);
@@ -452,14 +454,7 @@ public class AdminController {
     @ResponseBody
     public ResponseEntity<Map<String, Object>> getProductStatistics() {
         log.info("상품 통계 정보 API 요청");
-        
-        try {
-            Map<String, Object> statistics = productAdminService.getProductStatistics();
-            return ResponseEntity.ok(statistics);
-        } catch (Exception e) {
-            log.error("상품 통계 정보 조회 중 오류 발생", e);
-            return ResponseEntity.internalServerError().build();
-        }
+        return getStatisticsResponse(productManagementService::getProductStatistics, "상품 통계 정보 조회 중 오류 발생");
     }
 
     /**
@@ -483,7 +478,7 @@ public class AdminController {
 
             Product product = productService.findById(id);
             product.setStock(stock);
-            productAdminService.saveProduct(product);
+            productManagementService.saveProduct(product);
 
             response.put("success", true);
             response.put("message", "재고가 성공적으로 업데이트되었습니다.");
@@ -544,87 +539,55 @@ public class AdminController {
             @PathVariable Long id,
             @RequestParam Order.OrderStatus status,
             RedirectAttributes redirectAttributes) {
-        
-        log.info("주문 상태 업데이트 요청 - 주문 ID: {}, 새 상태: {}", id, status);
-        
-        try {
-            orderAdminService.updateOrderStatus(id, status, "관리자에 의한 상태 변경");
-            redirectAttributes.addFlashAttribute("successMessage", "주문 상태가 성공적으로 업데이트되었습니다.");
-        } catch (Exception e) {
-            log.error("주문 상태 업데이트 중 오류 발생: ID = {}, 상태 = {}", id, status, e);
-            redirectAttributes.addFlashAttribute("errorMessage", "주문 상태 업데이트 중 오류가 발생했습니다: " + e.getMessage());
-        }
-        
-        return "redirect:/admin/orders/" + id;
+        return processOrderUpdate(id, 
+            () -> orderAdminService.updateOrderStatus(id, status, "관리자에 의한 상태 변경"),
+            "주문 상태가 성공적으로 업데이트되었습니다.",
+            "주문 상태 업데이트 중 오류가 발생했습니다",
+            redirectAttributes);
     }
-    
+
     @PostMapping("/orders/{id}/shipping")
     public String updateShippingInfo(
             @PathVariable Long id,
             @RequestParam String trackingNumber,
             @RequestParam String carrier,
             RedirectAttributes redirectAttributes) {
-        
-        log.info("배송 정보 업데이트 요청 - 주문 ID: {}, 운송장: {}, 배송사: {}", id, trackingNumber, carrier);
-        
-        try {
-            orderAdminService.updateShippingInfo(id, trackingNumber, carrier);
-            redirectAttributes.addFlashAttribute("successMessage", "배송 정보가 성공적으로 업데이트되었습니다.");
-        } catch (Exception e) {
-            log.error("배송 정보 업데이트 중 오류 발생: ID = {}", id, e);
-            redirectAttributes.addFlashAttribute("errorMessage", "배송 정보 업데이트 중 오류가 발생했습니다: " + e.getMessage());
-        }
-        
-        return "redirect:/admin/orders/" + id;
+        return processOrderUpdate(id, 
+            () -> orderAdminService.updateShippingInfo(id, trackingNumber, carrier),
+            "배송 정보가 성공적으로 업데이트되었습니다.",
+            "배송 정보 업데이트 중 오류가 발생했습니다",
+            redirectAttributes);
     }
-    
+
     @PostMapping("/orders/{id}/memo")
     public String updateOrderMemo(
             @PathVariable Long id,
             @RequestParam String adminMemo,
             RedirectAttributes redirectAttributes) {
-        
-        log.info("주문 메모 업데이트 요청 - 주문 ID: {}", id);
-        
-        try {
-            orderAdminService.updateAdminMemo(id, adminMemo);
-            redirectAttributes.addFlashAttribute("successMessage", "메모가 성공적으로 저장되었습니다.");
-        } catch (Exception e) {
-            log.error("주문 메모 업데이트 중 오류 발생: ID = {}", id, e);
-            redirectAttributes.addFlashAttribute("errorMessage", "메모 저장 중 오류가 발생했습니다: " + e.getMessage());
-        }
-        
-        return "redirect:/admin/orders/" + id;
+        return processOrderUpdate(id, 
+            () -> orderAdminService.updateAdminMemo(id, adminMemo),
+            "주문 메모가 성공적으로 업데이트되었습니다.",
+            "주문 메모 업데이트 중 오류가 발생했습니다",
+            redirectAttributes);
     }
-    
+
     @PostMapping("/orders/{id}/cancel")
     public String cancelOrder(
             @PathVariable Long id,
             @RequestParam String cancelReason,
             RedirectAttributes redirectAttributes) {
-        
-        log.info("주문 취소 요청 - 주문 ID: {}, 취소 사유: {}", id, cancelReason);
-        
-        try {
-            orderAdminService.cancelOrder(id, cancelReason);
-            redirectAttributes.addFlashAttribute("successMessage", "주문이 성공적으로 취소되었습니다.");
-        } catch (Exception e) {
-            log.error("주문 취소 중 오류 발생: ID = {}", id, e);
-            redirectAttributes.addFlashAttribute("errorMessage", "주문 취소 중 오류가 발생했습니다: " + e.getMessage());
-        }
-        
-        return "redirect:/admin/orders/" + id;
+        return processOrderUpdate(id, 
+            () -> orderAdminService.cancelOrder(id, cancelReason),
+            "주문이 성공적으로 취소되었습니다.",
+            "주문 취소 중 오류가 발생했습니다",
+            redirectAttributes);
     }
     
-    /**
-     * 주문 이력 삭제 (상태를 DELETED로 변경)
-     */
     @PostMapping("/orders/{id}/delete")
     public String deleteOrder(
             @PathVariable Long id,
             @RequestParam String deleteReason,
             RedirectAttributes redirectAttributes) {
-        
         log.info("주문 이력 삭제 요청 - 주문 ID: {}, 삭제 사유: {}", id, deleteReason);
         
         try {
@@ -638,18 +601,38 @@ public class AdminController {
         }
     }
     
+    /**
+     * 주문 업데이트 작업을 처리하는 공통 메서드
+     * @param id 주문 ID
+     * @param updateAction 업데이트 작업을 실행할 함수
+     * @param successMessage 성공 메시지
+     * @param errorPrefix 에러 메시지 접두사
+     * @param redirectAttributes 리다이렉트 속성
+     * @return 리다이렉트 URL
+     */
+    private String processOrderUpdate(
+            Long id, 
+            Supplier<Order> updateAction,
+            String successMessage,
+            String errorPrefix,
+            RedirectAttributes redirectAttributes) {
+        
+        try {
+            updateAction.get();
+            redirectAttributes.addFlashAttribute("successMessage", successMessage);
+        } catch (Exception e) {
+            log.error("{}:  ID = {}", errorPrefix, id, e);
+            redirectAttributes.addFlashAttribute("errorMessage", errorPrefix + ": " + e.getMessage());
+        }
+        
+        return "redirect:/admin/orders/" + id;
+    }
+
     @GetMapping("/orders/statistics")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> getOrderStatistics() {
         log.info("주문 통계 정보 API 요청");
-        
-        try {
-            Map<String, Object> statistics = orderAdminService.getOrderStatistics();
-            return ResponseEntity.ok(statistics);
-        } catch (Exception e) {
-            log.error("주문 통계 정보 조회 중 오류 발생", e);
-            return ResponseEntity.internalServerError().build();
-        }
+        return getStatisticsResponse(orderAdminService::getOrderStatistics, "주문 통계 정보 조회 중 오류 발생");
     }
     
     @GetMapping("/orders/export")
@@ -841,6 +824,24 @@ public class AdminController {
             response.put("message", "테스트 데이터 롤백 중 오류가 발생했습니다: " + e.getMessage());
             
             return ResponseEntity.internalServerError().body(response);
+        }
+    }
+
+    /**
+     * 통계 데이터 API 응답을 처리하는 공통 메서드
+     * @param statisticsProvider 통계 데이터를 제공하는 함수형 인터페이스
+     * @param errorMessage 오류 발생 시 로깅할 메시지
+     * @return 통계 데이터 또는 오류 응답
+     */
+    private ResponseEntity<Map<String, Object>> getStatisticsResponse(
+            Supplier<Map<String, Object>> statisticsProvider, 
+            String errorMessage) {
+        try {
+            Map<String, Object> statistics = statisticsProvider.get();
+            return ResponseEntity.ok(statistics);
+        } catch (Exception e) {
+            log.error(errorMessage, e);
+            return ResponseEntity.internalServerError().build();
         }
     }
 } 

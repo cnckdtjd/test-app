@@ -3,21 +3,23 @@ package com.jacob.testapp.order.entity;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
+import lombok.Builder;
+import lombok.AllArgsConstructor;
 
 import jakarta.persistence.*;
-import java.time.LocalDateTime;
 
+/**
+ * 주문 상태 변경 이력 엔티티
+ * 주문의 상태 변경을 추적하기 위한 엔티티
+ */
 @Entity
 @Table(name = "order_history")
 @Getter
 @Setter
 @NoArgsConstructor
-public class OrderHistory {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+@AllArgsConstructor
+@Builder
+public class OrderHistory extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id")
@@ -39,8 +41,25 @@ public class OrderHistory {
 
     @Column(name = "created_by")
     private String createdBy;
-
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
-    private LocalDateTime createdAt;
+    
+    /**
+     * 주문 상태 변경 이력 생성
+     * @param order 주문
+     * @param statusFrom 이전 상태
+     * @param statusTo 변경된 상태
+     * @param createdBy 변경자
+     * @param memo 메모
+     * @return 생성된 주문 이력
+     */
+    public static OrderHistory createHistory(Order order, Order.OrderStatus statusFrom, 
+                                           Order.OrderStatus statusTo, String createdBy, String memo) {
+        return OrderHistory.builder()
+                .order(order)
+                .statusFrom(statusFrom)
+                .statusTo(statusTo)
+                .statusText(statusTo.getDisplayName())
+                .createdBy(createdBy)
+                .memo(memo)
+                .build();
+    }
 } 

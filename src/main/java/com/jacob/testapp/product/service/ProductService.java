@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit;
  * 상품 서비스
  */
 @Service
+@Transactional(readOnly = true)
 public class ProductService {
 
     private final ProductRepository productRepository;
@@ -26,34 +27,70 @@ public class ProductService {
     }
 
     /**
-     * 모든 상품 목록 조회
+     * 상품 목록 조회
      */
     public List<Product> findAll() {
         return productRepository.findAll();
     }
 
+    /**
+     * 페이징된 상품 목록 조회
+     */
     public Page<Product> findAll(Pageable pageable) {
         return productRepository.findAll(pageable);
     }
 
+    /**
+     * 활성 상품 목록 조회
+     */
     public Page<Product> findActiveProducts(Pageable pageable) {
-        return productRepository.findByStatusEquals(Product.Status.ACTIVE, pageable);
-    }
-
-    public Page<Product> searchProducts(String name, Pageable pageable) {
-        return productRepository.findByStatusEqualsAndNameContaining(Product.Status.ACTIVE, name, pageable);
-    }
-
-    public Page<Product> findByCategory(Product.Category category, Pageable pageable) {
-        return productRepository.findByStatusEqualsAndCategory(Product.Status.ACTIVE, category, pageable);
-    }
-
-    public Page<Product> searchByNameAndCategory(String name, Product.Category category, Pageable pageable) {
-        return productRepository.findByStatusEqualsAndNameContainingAndCategory(Product.Status.ACTIVE, name, category, pageable);
+        return productRepository.findByStatus(Product.Status.ACTIVE, pageable);
     }
 
     /**
-     * 상품 ID로 상품 조회
+     * 이름으로 상품 검색
+     */
+    public Page<Product> findByNameContaining(String name, Pageable pageable) {
+        return productRepository.findByNameContaining(name, pageable);
+    }
+
+    /**
+     * 카테고리로 상품 검색
+     */
+    public Page<Product> findByCategory(Product.Category category, Pageable pageable) {
+        return productRepository.findByCategory(category, pageable);
+    }
+
+    /**
+     * 이름과 카테고리로 상품 검색
+     */
+    public Page<Product> findByNameContainingAndCategory(String name, Product.Category category, Pageable pageable) {
+        return productRepository.findByNameContainingAndCategory(name, category, pageable);
+    }
+
+    /**
+     * 활성 상품만 검색 (이름 기준)
+     */
+    public Page<Product> searchActiveProducts(String name, Pageable pageable) {
+        return productRepository.findByStatusAndNameContaining(Product.Status.ACTIVE, name, pageable);
+    }
+
+    /**
+     * 활성 상품만 검색 (카테고리 기준)
+     */
+    public Page<Product> findActiveProductsByCategory(Product.Category category, Pageable pageable) {
+        return productRepository.findByStatusAndCategory(Product.Status.ACTIVE, category, pageable);
+    }
+
+    /**
+     * 활성 상품만 검색 (이름, 카테고리 기준)
+     */
+    public Page<Product> searchActiveProductsByNameAndCategory(String name, Product.Category category, Pageable pageable) {
+        return productRepository.findByStatusAndNameContainingAndCategory(Product.Status.ACTIVE, name, category, pageable);
+    }
+
+    /**
+     * ID로 상품 조회
      */
     public Product findById(Long id) {
         return productRepository.findById(id)
@@ -61,37 +98,35 @@ public class ProductService {
     }
 
     /**
-     * 상품 수 조회
+     * 전체 상품 수 조회
      */
     public long countProducts() {
         return productRepository.count();
     }
 
     /**
-     * 활성화된 상품 수 조회
+     * 활성 상품 수 조회
      */
     public long countActiveProducts() {
-        return productRepository.findAll().stream()
-                .filter(product -> product.getStatus() == Product.Status.ACTIVE)
-                .count();
+        return productRepository.countActiveProducts();
     }
 
     /**
-     * 카테고리별 상품 조회
+     * 카테고리별 상품 조회 (가격 오름차순)
      */
-    public List<Product> findByCategory(Product.Category category) {
+    public List<Product> findByCategoryOrderByPrice(Product.Category category) {
         return productRepository.findByCategoryOrderByPriceAsc(category);
     }
 
     /**
-     * 상품명으로 상품 검색
+     * 상품명으로 상품 검색 (대소문자 구분 없음)
      */
-    public List<Product> findByName(String keyword) {
+    public List<Product> findByNameIgnoreCase(String keyword) {
         return productRepository.findByNameContainingIgnoreCase(keyword);
     }
 
     /**
-     * 최근 추가된 상품 5개 조회
+     * 최근 추가된 상품 조회
      */
     public List<Product> findLatestProducts() {
         return productRepository.findTop5ByOrderByCreatedAtDesc();
@@ -105,36 +140,52 @@ public class ProductService {
         return productRepository.save(product);
     }
 
+    /**
+     * 재고 감소
+     */
     @Transactional
-    public boolean updateStock(Long productId, int quantity) {
-        int affected = productRepository.updateStockById(productId, quantity);
-        return affected > 0;
+    public boolean decreaseStock(Long productId, int quantity) {
+        // 먼저 최적화된 쿼리로 시도
+        int affected = productRepository.decreaseStock(productId, quantity);
+        if (affected > 0) {
+            return true;
+        }
+        
+        // 실패하면 비관적 락을 사용하여 재시도
+        return findAndDecreaseStock(productId, quantity);
     }
-
-    @Transactional
-    public Product decreaseStock(Long productId, int quantity) {
-        Optional<Product> productOpt = productRepository.findByIdWithPessimisticLock(productId);
-        if (productOpt.isPresent()) {
-            Product product = productOpt.get();
-            if (product.getStock() >= quantity) {
-                product.setStock(product.getStock() - quantity);
-                return productRepository.save(product);
-            } else {
-                throw new IllegalStateException("재고가 부족합니다. 현재 재고: " + product.getStock());
+    
+    /**
+     * 비관적 락을 사용하여 재고 감소
+     */
+    private boolean findAndDecreaseStock(Long productId, int quantity) {
+        try {
+            Product product = productRepository.findByIdWithPessimisticLock(productId)
+                    .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다: " + productId));
+            
+            if (product.decreaseStock(quantity)) {
+                productRepository.save(product);
+                return true;
             }
+            return false;
+        } catch (Exception e) {
+            return false;
         }
-        throw new IllegalArgumentException("상품을 찾을 수 없습니다: " + productId);
     }
 
+    /**
+     * 재고 증가
+     */
     @Transactional
-    public Product restoreStock(Long productId, int quantity) {
-        Optional<Product> productOpt = productRepository.findByIdWithPessimisticLock(productId);
-        if (productOpt.isPresent()) {
-            Product product = productOpt.get();
-            product.setStock(product.getStock() + quantity);
-            return productRepository.save(product);
+    public boolean increaseStock(Long productId, int quantity) {
+        try {
+            Product product = findById(productId);
+            product.increaseStock(quantity);
+            productRepository.save(product);
+            return true;
+        } catch (Exception e) {
+            return false;
         }
-        throw new IllegalArgumentException("상품을 찾을 수 없습니다: " + productId);
     }
 
     /**
@@ -145,7 +196,26 @@ public class ProductService {
         productRepository.deleteById(id);
     }
 
-    // 부하 테스트용 - 의도적으로 지연 발생
+    /**
+     * 상품 상태 변경
+     */
+    @Transactional
+    public Product updateStatus(Long id, Product.Status status) {
+        Product product = findById(id);
+        product.setStatus(status);
+        return productRepository.save(product);
+    }
+
+    /**
+     * 모든 카테고리 목록 가져오기
+     */
+    public List<Product.Category> findAllCategories() {
+        return List.of(Product.Category.values());
+    }
+
+    /**
+     * 부하 테스트용 - 의도적으로 지연 발생
+     */
     public Optional<Product> findByIdWithDelay(Long id, long delayMillis) {
         Optional<Product> product = productRepository.findById(id);
         try {
@@ -154,20 +224,5 @@ public class ProductService {
             Thread.currentThread().interrupt();
         }
         return product;
-    }
-
-    // 이름으로 상품 검색 (부분 일치)
-    public Page<Product> findByNameContaining(String name, Pageable pageable) {
-        return productRepository.findByNameContaining(name, pageable);
-    }
-
-    // 이름과 카테고리로 상품 검색 (문자열 카테고리를 Enum으로 변환)
-    public Page<Product> findByNameContainingAndCategory(String name, Product.Category category, Pageable pageable) {
-        return productRepository.findByNameContainingAndCategory(name, category, pageable);
-    }
-
-    // 모든 카테고리 목록 가져오기
-    public List<Product.Category> findAllCategories() {
-        return List.of(Product.Category.values());
     }
 } 

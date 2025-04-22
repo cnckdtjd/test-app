@@ -44,6 +44,7 @@ public class Product {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    @Builder.Default
     private Status status = Status.ACTIVE;
 
     @Column(length = 255)
@@ -70,11 +71,96 @@ public class Product {
         updatedAt = LocalDateTime.now();
     }
 
+    /**
+     * 상품 카테고리
+     */
     public enum Category {
-        프로그래밍, 데이터베이스, 네트워크, 운영체제, 인공지능, 모바일, UI_UX, DevOps, IoT, IT비즈니스, 네트워크_보안, 인공지능_데이터과학, 시스템_운영, 모바일_개발, IoT_혁신기술
+        프로그래밍("Programming"), 
+        데이터베이스("Database"), 
+        네트워크("Network"), 
+        운영체제("Operating System"), 
+        인공지능("Artificial Intelligence"), 
+        모바일("Mobile"), 
+        UI_UX("UI/UX"), 
+        DevOps("DevOps"), 
+        IoT("IoT"), 
+        IT비즈니스("IT Business"), 
+        네트워크_보안("Network Security"), 
+        인공지능_데이터과학("AI and Data Science"), 
+        시스템_운영("System Operations"), 
+        모바일_개발("Mobile Development"), 
+        IoT_혁신기술("IoT Innovation");
+        
+        private final String displayName;
+        
+        Category(String displayName) {
+            this.displayName = displayName;
+        }
+        
+        public String getDisplayName() {
+            return displayName;
+        }
     }
 
+    /**
+     * 상품 상태
+     */
     public enum Status {
-        ACTIVE, INACTIVE
+        ACTIVE("판매중"), 
+        INACTIVE("판매중지");
+        
+        private final String displayName;
+        
+        Status(String displayName) {
+            this.displayName = displayName;
+        }
+        
+        public String getDisplayName() {
+            return displayName;
+        }
+        
+        public boolean isActive() {
+            return this == ACTIVE;
+        }
+    }
+    
+    /**
+     * 재고 확인
+     * @param quantity 확인할 수량
+     * @return 주문 가능 여부
+     */
+    public boolean hasStock(int quantity) {
+        return this.stock >= quantity;
+    }
+    
+    /**
+     * 재고 감소
+     * @param quantity 감소시킬 수량
+     * @return 재고 감소 성공 여부
+     */
+    public boolean decreaseStock(int quantity) {
+        if (!hasStock(quantity)) {
+            return false;
+        }
+        this.stock -= quantity;
+        return true;
+    }
+    
+    /**
+     * 재고 증가
+     * @param quantity 증가시킬 수량
+     */
+    public void increaseStock(int quantity) {
+        if (quantity < 0) {
+            throw new IllegalArgumentException("수량은 0보다 커야 합니다");
+        }
+        this.stock += quantity;
+    }
+    
+    /**
+     * 상품이 활성 상태인지 확인
+     */
+    public boolean isActive() {
+        return status.isActive();
     }
 } 

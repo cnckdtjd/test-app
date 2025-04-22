@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
@@ -41,8 +42,30 @@ public class CartItem {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // 항목의 총 가격 계산 메서드
+    /**
+     * 항목의 총 가격 계산
+     * @return 상품 가격 * 수량
+     */
     public double getTotalPrice() {
+        if (product == null) {
+            return 0;
+        }
         return product.getPrice().doubleValue() * quantity;
+    }
+    
+    /**
+     * 수량 증가
+     */
+    public void increaseQuantity(int amount) {
+        this.quantity += amount;
+    }
+    
+    /**
+     * 수량 감소
+     * @return 수량이 0 이하가 되면 true 반환
+     */
+    public boolean decreaseQuantity(int amount) {
+        this.quantity -= amount;
+        return this.quantity <= 0;
     }
 } 

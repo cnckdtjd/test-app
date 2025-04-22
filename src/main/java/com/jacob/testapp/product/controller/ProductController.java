@@ -48,31 +48,13 @@ public class ProductController {
         Pageable pageable = PageRequest.of(page, size, Sort.by("name").ascending());
         
         // 상품 검색 (이름 또는 카테고리 기준)
-        Page<Product> products;
-        if (name != null && !name.isEmpty() && category != null) {
-            products = productService.findByNameContainingAndCategory(name, category, pageable);
-        } else if (name != null && !name.isEmpty()) {
-            products = productService.findByNameContaining(name, pageable);
-        } else if (category != null) {
-            products = productService.findByCategory(category, pageable);
-        } else {
-            products = productService.findAll(pageable);
-        }
+        Page<Product> products = findProducts(name, category, pageable);
         
         // 카테고리 목록 가져오기
         List<Product.Category> categories = List.of(Product.Category.values());
         
-        // 장바구니 정보 가져오기 (로그인 상태일 경우)
-        if (principal != null) {
-            User user = userService.findByUsername(principal.getName())
-                    .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
-            Optional<Cart> cart = cartService.findByUserWithItems(user.getId());
-            if (cart.isPresent()) {
-                model.addAttribute("cartItemCount", cart.get().getCartItems().size());
-            } else {
-                model.addAttribute("cartItemCount", 0);
-            }
-        }
+        // 장바구니 정보 추가
+        addCartInfoToModel(model, principal);
         
         // 모델에 데이터 추가
         model.addAttribute("products", products);
@@ -87,30 +69,18 @@ public class ProductController {
     @GetMapping("/{id}")
     public String productDetail(@PathVariable Long id, Model model, Principal principal) {
         // 상품 정보 가져오기
-        Optional<Product> product = Optional.ofNullable(productService.findById(id));
-        if (product.isEmpty()) {
+        Product product = productService.findById(id);
+        if (product == null) {
             return "redirect:/products";
         }
         
-        // 장바구니 정보 가져오기 (로그인 상태일 경우)
-        if (principal != null) {
-            User user = userService.findByUsername(principal.getName())
-                    .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
-            Optional<Cart> cart = cartService.findByUserWithItems(user.getId());
-            if (cart.isPresent()) {
-                model.addAttribute("cartItemCount", cart.get().getCartItems().size());
-            } else {
-                model.addAttribute("cartItemCount", 0);
-            }
-        }
+        // 장바구니 정보 추가
+        addCartInfoToModel(model, principal);
         
-        // 관련 상품 가져오기 (같은 카테고리)
-        List<Product> relatedProducts = productService.findByCategory(product.get().getCategory(), PageRequest.of(0, 4))
-                .stream()
-                .filter(p -> !p.getId().equals(id))
-                .collect(Collectors.toList());
+        // 관련 상품 가져오기 (같은 카테고리, 현재 상품 제외)
+        List<Product> relatedProducts = findRelatedProducts(product, id);
         
-        model.addAttribute("product", product.get());
+        model.addAttribute("product", product);
         model.addAttribute("relatedProducts", relatedProducts);
         
         return "product/detail";
@@ -122,5 +92,53 @@ public class ProductController {
     public Product productDetailWithDelay(@PathVariable Long id, @RequestParam(defaultValue = "1000") long delayMillis) {
         return productService.findByIdWithDelay(id, delayMillis)
                 .orElseThrow(() -> new IllegalArgumentException("Invalid product ID: " + id));
+    }
+    
+    /**
+     * 주어진 조건에 맞는 상품 목록을 검색합니다.
+     */
+    private Page<Product> findProducts(String name, Product.Category category, Pageable pageable) {
+        if (name != null && !name.isEmpty() && category != null) {
+            return productService.findByNameContainingAndCategory(name, category, pageable);
+        } else if (name != null && !name.isEmpty()) {
+            return productService.findByNameContaining(name, pageable);
+        } else if (category != null) {
+            return productService.findByCategory(category, pageable);
+        } else {
+            return productService.findAll(pageable);
+        }
+    }
+    
+    /**
+     * 관련 상품 목록을 조회합니다.
+     */
+    private List<Product> findRelatedProducts(Product product, Long currentProductId) {
+        return productService.findByCategory(product.getCategory(), PageRequest.of(0, 4))
+                .stream()
+                .filter(p -> !p.getId().equals(currentProductId))
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * 장바구니 정보를 모델에 추가합니다.
+     */
+    private void addCartInfoToModel(Model model, Principal principal) {
+        if (principal == null) {
+            model.addAttribute("cartItemCount", 0);
+            return;
+        }
+        
+        try {
+            User user = userService.findByUsername(principal.getName())
+                    .orElseThrow(() -> new IllegalArgumentException("사용자를 찾을 수 없습니다"));
+            
+            cartService.findByUserWithItems(user.getId())
+                    .ifPresentOrElse(
+                            cart -> model.addAttribute("cartItemCount", cart.getCartItems().size()),
+                            () -> model.addAttribute("cartItemCount", 0)
+                    );
+        } catch (Exception e) {
+            model.addAttribute("cartItemCount", 0);
+        }
     }
 } 

@@ -45,6 +45,7 @@ public class User {
     private String address;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private Role role;
 
     @Column(nullable = false)
@@ -73,36 +74,104 @@ public class User {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
-    private List<Order> orders = new ArrayList<>();
-
-    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Cart cart;
-
-    public enum Role {
-        ROLE_USER, ROLE_ADMIN
-    }
-
-    public enum Status {
-        ACTIVE, INACTIVE, LOCKED
-    }
+    @Column(nullable = true)
+    private LocalDateTime lastLoginAt;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Status status;
 
-    @Column(nullable = true)
-    private LocalDateTime lastLoginAt;
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
+    @Builder.Default
+    private List<Order> orders = new ArrayList<>();
 
-    @PrePersist
-    protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        lastLoginAt = createdAt;
+    @OneToOne(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private Cart cart;
+
+    /**
+     * 사용자 역할
+     */
+    public enum Role {
+        ROLE_USER, 
+        ROLE_ADMIN;
+        
+        /**
+         * Spring Security에서 사용할 역할 이름 반환 (ROLE_ 접두사 제거)
+         */
+        public String getAuthority() {
+            return name().substring(5);
+        }
     }
 
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-        lastLoginAt = updatedAt;
+    /**
+     * 사용자 상태
+     */
+    public enum Status {
+        ACTIVE,   // 활성화 상태
+        INACTIVE, // 비활성화 상태 
+        LOCKED;   // 잠금 상태
+        
+        /**
+         * 사용자가 활성 상태인지 확인
+         */
+        public boolean isActive() {
+            return this == ACTIVE;
+        }
+        
+        /**
+         * 사용자가 잠긴 상태인지 확인
+         */
+        public boolean isLocked() {
+            return this == LOCKED;
+        }
+    }
+
+    /**
+     * 계정이 활성 상태인지 확인
+     */
+    public boolean isActive() {
+        return status.isActive() && enabled && !accountLocked;
+    }
+    
+    /**
+     * 로그인 시도 증가
+     * @return 최대 시도 횟수(5) 초과 여부
+     */
+    public boolean incrementLoginAttempts() {
+        this.loginAttempts++;
+        return this.loginAttempts >= 5;
+    }
+    
+    /**
+     * 로그인 시도 초기화
+     */
+    public void resetLoginAttempts() {
+        this.loginAttempts = 0;
+    }
+    
+    /**
+     * 계정 잠금 처리
+     */
+    public void lock() {
+        this.accountLocked = true;
+        this.status = Status.LOCKED;
+        this.lockTime = LocalDateTime.now();
+    }
+    
+    /**
+     * 계정 잠금 해제
+     */
+    public void unlock() {
+        this.accountLocked = false;
+        this.status = Status.ACTIVE;
+        this.lockTime = null;
+        resetLoginAttempts();
+    }
+    
+    /**
+     * 마지막 로그인 시간 업데이트
+     */
+    public void updateLastLoginTime() {
+        this.lastLoginAt = LocalDateTime.now();
     }
 } 

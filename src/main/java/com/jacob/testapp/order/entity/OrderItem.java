@@ -6,16 +6,16 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+/**
+ * 주문 아이템 엔티티
+ * 주문에 포함된 개별 상품 항목을 나타냄
+ */
 @Entity
 @Table(name = "order_items")
 @Getter
 @Setter
 @NoArgsConstructor
-public class OrderItem {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+public class OrderItem extends BaseEntity {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id", nullable = false)
@@ -33,4 +33,20 @@ public class OrderItem {
 
     @Column
     private String productOption;
+    
+    /**
+     * 주문 항목의 총 가격 계산
+     * @return 단가 × 수량
+     */
+    public double getTotalPrice() {
+        return price * quantity;
+    }
+    
+    /**
+     * 주문 항목을 주문에 연결
+     * @param order 연결할 주문
+     */
+    public void setOrder(Order order) {
+        this.order = order;
+    }
 } 
