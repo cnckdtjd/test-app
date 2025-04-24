@@ -1,0 +1,43 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 장바구니 트랜잭션 복잡성 및 부하테스트 가이드
+
+## 애플리케이션 목표
+- 이 애플리케이션은 복잡한 트랜잭션 처리를 위한 테스트 환경을 제공합니다.
+- JMeter를 사용한 부하테스트가 주요 목적입니다.
+- 복잡한 로직을 구현하면서도 모든 기능이 정상적으로 작동해야 합니다.
+
+## 코드베이스 구조
+- 장바구니 시스템은 [Cart.java](mdc:src/main/java/com/jacob/testapp/cart/entity/Cart.java)와 [CartItem.java](mdc:src/main/java/com/jacob/testapp/cart/entity/CartItem.java) 엔티티로 구성됩니다.
+- 비즈니스 로직은 [CartService.java](mdc:src/main/java/com/jacob/testapp/cart/service/CartService.java)에 구현되어 있습니다.
+- API 엔드포인트는 [CartController.java](mdc:src/main/java/com/jacob/testapp/cart/controller/CartController.java)에서 제공합니다.
+
+## 트랜잭션 규칙
+1. **모든 장바구니 작업은 트랜잭션으로 처리되어야 합니다**
+   - 상품 추가, 수정, 삭제는 원자적으로 이루어져야 합니다.
+   - 버전 관리(Optimistic Locking)를 사용하여 동시성 문제를 처리해야 합니다.
+
+2. **고부하 상황에서 데이터 일관성 유지**
+   - 재고 확인과 장바구니 업데이트는 항상 동기화되어야 합니다.
+   - 재고가 부족한 경우 적절한 예외 처리가 필요합니다.
+
+3. **분산 트랜잭션 고려사항**
+   - 마이크로서비스 환경을 고려한 설계가 필요합니다.
+   - 이벤트 기반 통신을 통해 서비스 간 결합도를 낮춰야 합니다.
+
+4. **성능 최적화**
+   - 불필요한 데이터베이스 조회를 최소화해야 합니다.
+   - 적절한 캐싱 전략을 사용해야 합니다.
+
+5. **부하테스트 시나리오**
+   - 동시에 여러 사용자가 같은 상품에 접근하는 상황
+   - 장바구니 아이템 대량 추가/삭제 상황
+   - 재고 한계에 도달한 상황
+
+## 테스트 원칙
+1. 모든 기능은 단위 테스트로 검증되어야 합니다.
+2. 통합 테스트를 통해 서비스 간 상호작용을 검증해야 합니다.
+3. JMeter 테스트 계획은 실제 사용자 행동 패턴을 반영해야 합니다.

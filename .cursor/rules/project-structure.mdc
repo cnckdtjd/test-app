@@ -1,0 +1,58 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# 프로젝트 폴더 구조 및 아키텍처 가이드
+
+## 애플리케이션 구조 개요
+이 애플리케이션은 Java Spring Boot를 기반으로 한 표준 n-tier 아키텍처를 따르고 있으며, 주요 컴포넌트는 다음과 같이 구성되어 있습니다:
+
+```
+src/main/java/com/jacob/testapp/
+├── TestAppApplication.java (메인 애플리케이션 클래스)
+├── user/ (사용자 관련 기능)
+├── product/ (상품 관련 기능)
+├── cart/ (장바구니 관련 기능)
+├── order/ (주문 관련 기능)
+├── admin/ (관리자 기능)
+└── common/ (공통 기능)
+```
+
+## 모듈별 구조
+각 기능 모듈은 다음과 같은 패키지 구조를 따릅니다:
+
+```
+module/
+├── controller/ (웹 요청 처리)
+├── service/ (비즈니스 로직)
+├── repository/ (데이터 접근)
+└── entity/ (데이터 모델)
+```
+
+## 주요 파일 참조
+
+### 핵심 애플리케이션
+- [TestAppApplication.java](mdc:src/main/java/com/jacob/testapp/TestAppApplication.java) - 애플리케이션 진입점
+
+### 홈 컨트롤러
+- [HomeController.java](mdc:src/main/java/com/jacob/testapp/common/controller/HomeController.java) - 메인 페이지 및 기본 경로 처리
+
+### 장바구니 관련 파일
+- [Cart.java](mdc:src/main/java/com/jacob/testapp/cart/entity/Cart.java) - 장바구니 엔티티
+- [CartItem.java](mdc:src/main/java/com/jacob/testapp/cart/entity/CartItem.java) - 장바구니 아이템 엔티티
+- [CartController.java](mdc:src/main/java/com/jacob/testapp/cart/controller/CartController.java) - 장바구니 컨트롤러
+- [CartService.java](mdc:src/main/java/com/jacob/testapp/cart/service/CartService.java) - 장바구니 서비스
+
+### 사용자 관련 파일
+- [UserController.java](mdc:src/main/java/com/jacob/testapp/user/controller/UserController.java) - 사용자 계정 관리
+
+### 상품 관련 파일
+- [ProductController.java](mdc:src/main/java/com/jacob/testapp/product/controller/ProductController.java) - 상품 조회/정보 처리
+- [ProductAdminController.java](mdc:src/main/java/com/jacob/testapp/product/controller/ProductAdminController.java) - 상품 관리자 기능
+
+### 주문 관련 파일
+- [OrderController.java](mdc:src/main/java/com/jacob/testapp/order/controller/OrderController.java) - 주문 처리
+
+### 관리자 기능
+- [AdminController.java](mdc:src/main/java/com/jacob/testapp/admin/controller/AdminController.java) - 관리자 기능

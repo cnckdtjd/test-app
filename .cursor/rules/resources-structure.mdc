@@ -1,0 +1,118 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# 리소스 폴더 구조 및 역할 가이드
+
+## 리소스 폴더 개요
+Spring Boot 애플리케이션의 `src/main/resources` 폴더는 모든 정적 리소스와 설정 파일을 포함하고 있습니다. 이 폴더는 다음과 같은 핵심 역할을 담당합니다:
+
+- 애플리케이션 설정
+- 템플릿 파일 (뷰)
+- 정적 리소스 (CSS, JavaScript, 이미지)
+- 지역화(국제화) 설정
+
+## 폴더 구조
+
+```
+src/main/resources/
+├── application.yml (주요 Spring Boot 설정 파일)
+├── application.properties (추가 설정 파일)
+├── templates/ (Thymeleaf 템플릿)
+│   ├── fragments/ (재사용 가능한 템플릿 조각)
+│   ├── admin/ (관리자 화면 템플릿)
+│   ├── cart/ (장바구니 화면 템플릿)
+│   ├── order/ (주문 화면 템플릿)
+│   ├── product/ (상품 화면 템플릿)
+│   ├── user/ (사용자 계정 화면 템플릿)
+│   ├── users/ (사용자 프로필 화면 템플릿)
+│   └── home.html (홈페이지 템플릿)
+└── static/ (정적 자원)
+    ├── css/ (스타일시트)
+    │   ├── admin/ (관리자 페이지 스타일)
+    │   ├── user/ (사용자 페이지 스타일)
+    │   └── main.css (메인 스타일시트)
+    ├── js/ (자바스크립트)
+    │   ├── admin/ (관리자 기능 스크립트)
+    │   ├── user/ (사용자 기능 스크립트)
+    │   └── main.js (공통 스크립트)
+    └── img/ (이미지 파일)
+```
+
+## 주요 파일 및 역할
+
+### 설정 파일
+- [application.yml](mdc:src/main/resources/application.yml) - 기본 Spring Boot 설정 파일 (YAML 형식)
+  - 데이터베이스 연결 정보
+  - JPA / Hibernate 설정
+  - 서버 설정 (포트, 스레드 등)
+  - 로깅 설정
+  - 보안 설정
+
+- [application.properties](mdc:src/main/resources/application.properties) - 추가 설정 파일 (Properties 형식)
+  - 로깅 세부 설정
+  - 디버깅 설정
+
+### 템플릿 (Views)
+모든 화면은 Thymeleaf 템플릿 엔진을 사용하여 렌더링됩니다. 템플릿은 `templates/` 폴더에 기능별로 구성되어 있습니다.
+
+- `templates/fragments/` - 헤더, 푸터, 네비게이션 바 등 재사용 가능한 UI 조각
+- `templates/admin/` - 관리자 페이지 템플릿
+- `templates/cart/` - 장바구니 관련 템플릿
+- `templates/order/` - 주문 프로세스 템플릿
+- `templates/product/` - 상품 목록 및 상세 페이지 템플릿
+- `templates/user/` - 사용자 계정 관리 템플릿
+- `templates/users/` - 사용자 프로필 템플릿
+- `home.html` - 메인 홈페이지 템플릿
+
+### 정적 자원 (Static Resources)
+정적 자원은 `static/` 폴더에 저장되며, 웹 브라우저에서 직접 접근할 수 있습니다.
+
+- `static/css/` - 스타일시트 (CSS)
+  - `main.css` - 사이트 전체 공통 스타일
+  - `admin/` - 관리자 페이지 전용 스타일
+  - `user/` - 사용자 페이지 전용 스타일
+
+- `static/js/` - 자바스크립트 (JS)
+  - `main.js` - 공통 JavaScript 기능
+  - `admin/` - 관리자 페이지 전용 스크립트
+  - `user/` - 사용자 페이지 전용 스크립트
+
+- `static/img/` - 이미지 파일
+
+## 트랜잭션 테스트 관련 리소스 설정
+
+부하 테스트를 위한 트랜잭션 복잡성을 고려하여 다음 설정을 이해해야 합니다:
+
+1. **application.yml의 데이터베이스 설정**
+   ```yaml
+   spring:
+     datasource:
+       url: jdbc:mariadb://localhost:3306/testapp
+       username: ck
+       password: "0527"
+     jpa:
+       hibernate:
+         ddl-auto: create-drop
+   ```
+
+2. **서버 성능 관련 설정**
+   ```yaml
+   server:
+     tomcat:
+       max-threads: 200
+       max-connections: 10000
+       accept-count: 100
+       connection-timeout: 20000
+   ```
+
+3. **로깅 설정**
+   ```yaml
+   logging:
+     level:
+       org.hibernate.SQL: DEBUG
+       org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+   ```
+
+이러한 설정은 JMeter 부하 테스트 중 트랜잭션 처리를 모니터링하기 위해 중요합니다.

@@ -177,6 +177,25 @@ public class StatisticsService {
                 .collect(Collectors.groupingBy(Order::getStatus, Collectors.counting()));
         stats.put("ordersByStatus", statusStats);
         
+        // 완료된 주문 개수
+        long completedOrders = statusStats.getOrDefault(Order.OrderStatus.COMPLETED, 0L);
+        stats.put("completedOrders", completedOrders);
+        
+        // 처리 중인 주문 개수 (PENDING, PAID, SHIPPING 상태)
+        long pendingOrders = statusStats.getOrDefault(Order.OrderStatus.PENDING, 0L) +
+                           statusStats.getOrDefault(Order.OrderStatus.PAID, 0L) +
+                           statusStats.getOrDefault(Order.OrderStatus.SHIPPING, 0L);
+        stats.put("pendingOrders", pendingOrders);
+        
+        // 총 매출 계산 - CANCELLED, DELETED 상태가 아닌 주문만 합산
+        double totalSales = orders.stream()
+                .filter(order -> order.getStatus() != Order.OrderStatus.CANCELLED && 
+                               order.getStatus() != Order.OrderStatus.DELETED)
+                .filter(order -> order.getTotalAmount() != null)
+                .mapToDouble(Order::getTotalAmount)
+                .sum();
+        stats.put("totalSales", totalSales);
+        
         // 월별 주문 통계
         Map<String, Long> monthlyStats = new HashMap<>();
         

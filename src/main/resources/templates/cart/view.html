@@ -89,7 +89,7 @@
         <div th:unless="${cart.cartItems.isEmpty()}">
             <div class="card mb-4">
                 <div class="card-header bg-white py-3">
-                    <h5 class="mb-0">장바구니 상품 (<span th:text="${cartItemCount}">0</span>개)</h5>
+                    <h5 class="mb-0">장바구니 상품 (<span th:text="${cartItemTypes}">0</span>종 / <span th:text="${cartItemCount}">0</span>개)</h5>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">

@@ -82,8 +82,17 @@ public class HomeController {
             try {
                 Optional<Cart> cartWithItems = cartService.findByUserWithItems(user.getId());
                 if (cartWithItems.isPresent() && !cartWithItems.get().getCartItems().isEmpty()) {
-                    model.addAttribute("cartItemCount", cartWithItems.get().getCartItems().size());
-                    model.addAttribute("cartTotalPrice", cartWithItems.get().getTotalPrice());
+                    Cart userCart = cartWithItems.get();
+                    model.addAttribute("cartItemCount", userCart.getTotalQuantity());
+                    model.addAttribute("cartTotalPrice", userCart.getTotalPrice());
+                    
+                    // 현금 잔액 검증
+                    if (user.getCashBalance() != null && 
+                        userCart.getTotalPrice().compareTo(java.math.BigDecimal.valueOf(user.getCashBalance())) > 0) {
+                        model.addAttribute("balanceWarning", true);
+                        model.addAttribute("shortAmount", 
+                            userCart.getTotalPrice().subtract(java.math.BigDecimal.valueOf(user.getCashBalance())));
+                    }
                 } else {
                     // 장바구니는 있지만 아이템이 없는 경우
                     model.addAttribute("cartItemCount", 0);

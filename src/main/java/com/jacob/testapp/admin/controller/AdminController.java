@@ -686,18 +686,7 @@ public class AdminController {
             
             // 주문 통계
             Map<String, Object> orderStats = statisticsService.getOrderStatistics();
-            
-            // 주문 상태별 통계 추가 처리
-            if (orderStats.containsKey("ordersByStatus")) {
-                Map<String, Long> ordersByStatus = (Map<String, Long>) orderStats.get("ordersByStatus");
-                long completedOrders = ordersByStatus.getOrDefault("COMPLETED", 0L);
-                long pendingOrders = ordersByStatus.getOrDefault("PENDING", 0L) + 
-                                    ordersByStatus.getOrDefault("PAID", 0L) + 
-                                    ordersByStatus.getOrDefault("SHIPPING", 0L);
-                
-                orderStats.put("completedOrders", completedOrders);
-                orderStats.put("pendingOrders", pendingOrders);
-            }
+            model.addAttribute("orderStats", orderStats);
             
             // 매출 포맷팅
             if (orderStats.containsKey("totalSales")) {
@@ -722,8 +711,6 @@ public class AdminController {
             } catch (Exception e) {
                 log.warn("통계 데이터 JSON 변환 중 오류", e);
             }
-            
-            model.addAttribute("orderStats", orderStats);
             
             return "admin/details";
         } catch (Exception e) {

@@ -108,7 +108,7 @@ public class UserExportService {
                 
                 // CSV 포맷에 맞게 사용자명 이스케이프 처리
                 String username = escapeSpecialCharacters(user.getUsername());
-                String password = "password" + user.getId();
+                String password = "test";
                 
                 writer.println(username + "," + password);
                 

@@ -18,6 +18,12 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 체크아웃 페이지에서 현금 결제 버튼 이벤트 설정
     setupCashPayment();
+    
+    // 툴팁 초기화
+    initializeTooltips();
+    
+    // 현금 부족 버튼 처리
+    setupInsufficientFunds();
 });
 
 function setupCartFunctionality() {
@@ -261,4 +267,26 @@ function setupCashPayment() {
             }
         });
     }
+}
+
+// 툴팁 초기화 기능
+function initializeTooltips() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+}
+
+// 현금 부족 버튼 처리 기능
+function setupInsufficientFunds() {
+    document.querySelectorAll('.insufficient-funds').forEach(button => {
+        button.addEventListener('click', function(e) {
+            const price = this.getAttribute('data-price');
+            const balance = this.getAttribute('data-balance');
+            const shortfall = this.getAttribute('data-shortfall');
+            
+            // 현금 부족 알림 표시
+            alert(`현금 잔액이 부족하여 상품을 담을 수 없습니다.\n\n상품 가격: ${price}\n현재 잔액: ${balance}\n부족 금액: ${shortfall}`);
+        });
+    });
 } 

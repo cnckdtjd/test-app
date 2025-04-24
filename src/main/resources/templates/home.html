@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" th:href="@{/css/main.css}">
+    <!-- 카테고리 스타일 적용 -->
+    <style th:replace="fragments/category :: category-styles"></style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
@@ -72,90 +74,23 @@
     </nav>
     
     <div class="container mt-5">
-<!--        &lt;!&ndash; 현금 잔액 표시 &ndash;&gt;-->
-<!--        <div class="row mb-4">-->
-<!--            <div class="col-md-12">-->
-<!--                <div class="card shadow-sm">-->
-<!--                    <div class="card-body d-flex justify-content-between align-items-center">-->
-<!--                        <div>-->
-<!--                            <h5 class="card-title mb-0"><i class="bi bi-wallet2"></i> 보유 현금</h5>-->
-<!--                            <p class="text-muted small mb-0">쇼핑에 사용 가능한 잔액입니다</p>-->
-<!--                        </div>-->
-<!--                        <div class="text-end">-->
-<!--                            <span class="fs-3 fw-bold text-primary" th:text="${#numbers.formatCurrency(user.cashBalance)}">50,000원</span>-->
-<!--                            <a href="#" class="btn btn-sm btn-outline-primary ms-2"><i class="bi bi-plus-circle"></i> 충전</a>-->
-<!--                        </div>-->
-<!--                    </div>-->
-<!--                </div>-->
-<!--            </div>-->
-<!--        </div>-->
-<!--        -->
-<!--        &lt;!&ndash; 최근 주문 내역 섹션 &ndash;&gt;-->
-<!--        <div class="row mb-4">-->
-<!--            <div class="col-12">-->
-<!--                <div class="card shadow-sm">-->
-<!--                    <div class="card-header bg-white d-flex justify-content-between align-items-center py-2">-->
-<!--                        <h5 class="mb-0"><i class="bi bi-receipt me-2 text-primary"></i>최근 주문 내역</h5>-->
-<!--                        <a th:href="@{/orders}" class="btn btn-sm btn-outline-primary">전체보기 <i class="bi bi-arrow-right"></i></a>-->
-<!--                    </div>-->
-<!--                    <div class="card-body px-0 py-0">-->
-<!--                        <div th:if="${recentOrders != null && !recentOrders.empty}" class="table-responsive">-->
-<!--                            <table class="table table-hover mb-0">-->
-<!--                                <thead class="table-light">-->
-<!--                                    <tr>-->
-<!--                                        <th class="px-3">주문번호</th>-->
-<!--                                        <th>상품</th>-->
-<!--                                        <th>금액</th>-->
-<!--                                        <th>상태</th>-->
-<!--                                        <th>주문일</th>-->
-<!--                                        <th class="text-end pe-3">관리</th>-->
-<!--                                    </tr>-->
-<!--                                </thead>-->
-<!--                                <tbody>-->
-<!--                                    <tr th:each="order : ${recentOrders}" th:if="${orderStat.index < 3}">-->
-<!--                                        <td class="px-3"><span class="fw-medium" th:text="${order.orderNumber}">ORD123456</span></td>-->
-<!--                                        <td>-->
-<!--                                            <div class="d-flex align-items-center">-->
-<!--                                                <img th:if="${order.items.size() > 0 && order.items[0].product.imageUrl != null}" -->
-<!--                                                     th:src="${order.items[0].product.imageUrl}" -->
-<!--                                                     style="width: 32px; height: 32px; object-fit: cover; border-radius: 4px;" class="me-2" alt="상품 이미지">-->
-<!--                                                <span th:text="${order.items.size() > 0 ? order.items[0].product.name + (order.items.size() > 1 ? ' 외 ' + (order.items.size() - 1) + '건' : '') : '상품 없음'}" class="text-truncate" style="max-width: 150px; display: inline-block;">-->
-<!--                                                    상품명 외 1건-->
-<!--                                                </span>-->
-<!--                                            </div>-->
-<!--                                        </td>-->
-<!--                                        <td th:text="${#numbers.formatCurrency(order.totalAmount)}">50,000원</td>-->
-<!--                                        <td>-->
-<!--                                            <span th:class="${'badge text-bg-' + -->
-<!--                                                            (order.status.name() == 'PENDING' ? 'warning' : -->
-<!--                                                             order.status.name() == 'PAID' ? 'info' : -->
-<!--                                                             order.status.name() == 'SHIPPING' ? 'primary' : -->
-<!--                                                             order.status.name() == 'COMPLETED' ? 'success' : -->
-<!--                                                             order.status.name() == 'CANCELLED' ? 'danger' : 'secondary')}" -->
-<!--                                                  th:text="${order.status.displayName}">-->
-<!--                                                결제대기-->
-<!--                                            </span>-->
-<!--                                        </td>-->
-<!--                                        <td th:text="${#temporals.format(order.createdAt, 'yyyy-MM-dd')}">2023-01-01</td>-->
-<!--                                        <td class="text-end pe-3">-->
-<!--                                            <a th:href="@{'/orders/' + ${order.id}}" class="btn btn-sm btn-outline-primary">-->
-<!--                                                <i class="bi bi-eye"></i> 상세-->
-<!--                                            </a>-->
-<!--                                        </td>-->
-<!--                                    </tr>-->
-<!--                                </tbody>-->
-<!--                            </table>-->
-<!--                        </div>-->
-<!--                        <div th:if="${recentOrders == null || recentOrders.empty}" class="text-center py-4">-->
-<!--                            <i class="bi bi-receipt fs-1 text-muted mb-3 d-block"></i>-->
-<!--                            <p>최근 주문 내역이 없습니다.</p>-->
-<!--                            <a th:href="@{/products}" class="btn btn-primary mt-2">상품 둘러보기</a>-->
-<!--                        </div>-->
-<!--                    </div>-->
-<!--                </div>-->
-<!--            </div>-->
-<!--        </div>-->
-<!--        -->
+        <!-- 장바구니 현금 부족 경고 -->
+        <div class="alert alert-danger alert-dismissible fade show d-flex align-items-center" th:if="${balanceError}" role="alert">
+            <div class="flex-grow-1">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>현금 잔액 부족:</strong> 장바구니에 상품을 추가할 수 없습니다.
+                <div class="mt-2">
+                    <span th:if="${shortAmount != null}">부족한 금액: <strong th:text="${#numbers.formatCurrency(shortAmount)}">0원</strong></span>
+                    <span th:if="${userBalance != null}" class="ms-3">현재 잔액: <strong th:text="${#numbers.formatCurrency(userBalance)}">0원</strong></span>
+                </div>
+                <div class="mt-2">
+                    <a th:href="@{/cart}" class="btn btn-sm btn-outline-danger me-2">장바구니 확인</a>
+                    <a th:href="@{/users/profile}" class="btn btn-sm btn-outline-primary">잔액 충전</a>
+                </div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        
         <!-- 사용자 정보 요약 섹션 -->
         <div class="row mb-5" sec:authorize="isAuthenticated()">
             <div class="col-md-4 mb-4">
@@ -252,12 +187,7 @@
                     <div class="card-body d-flex flex-column p-3">
                         <div class="d-flex justify-content-between align-items-start mb-1">
                             <h5 class="card-title mb-0 product-name" th:text="${product.name}">상품명</h5>
-                            <span class="badge rounded-pill" th:text="${product.category}" 
-                                  th:classappend="${#strings.equals(product.category, '전자기기') ? 'bg-info' : 
-                                                   #strings.equals(product.category, '식품') ? 'bg-success' : 
-                                                   #strings.equals(product.category, '의류') ? 'bg-warning' : 'bg-secondary'}">
-                                카테고리
-                            </span>
+                            <span th:replace="fragments/category :: category-badge(${product.category})"></span>
                         </div>
                         <p class="card-text small text-muted mb-2" th:text="${#strings.abbreviate(product.description, 60)}">설명</p>
                         
@@ -275,7 +205,23 @@
                                     <form th:action="@{/cart/add}" method="post" sec:authorize="isAuthenticated()" class="cart-form">
                                         <input type="hidden" name="productId" th:value="${product.id}">
                                         <input type="hidden" name="quantity" value="1">
-                                        <button type="submit" class="btn btn-primary">
+                                        <input type="hidden" name="returnUrl" value="/home">
+                                        
+                                        <!-- 현금 잔액 부족 시 버튼 비활성화 -->
+                                        <button th:if="${user.cashBalance != null && product.price.doubleValue() > user.cashBalance}" 
+                                                type="button" 
+                                                class="btn btn-danger insufficient-funds"
+                                                data-bs-toggle="tooltip"
+                                                data-bs-placement="top"
+                                                th:data-price="${#numbers.formatCurrency(product.price)}"
+                                                th:data-balance="${#numbers.formatCurrency(user.cashBalance)}"
+                                                th:data-shortfall="${#numbers.formatCurrency(product.price - user.cashBalance)}"
+                                                th:title="'현금 부족: ' + ${#numbers.formatCurrency(product.price - user.cashBalance)} + ' 부족'">
+                                            <i class="bi bi-exclamation-circle"></i>
+                                        </button>
+                                        <button th:unless="${user.cashBalance != null && product.price.doubleValue() > user.cashBalance}" 
+                                                type="submit" 
+                                                class="btn btn-primary">
                                             <i class="bi bi-cart-plus"></i>
                                         </button>
                                     </form>
@@ -287,44 +233,6 @@
             </div>
         </div>
     </div>
-    
-    <!-- CSS 스타일 추가 -->
-    <style>
-        .hover-scale {
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-        .hover-scale:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
-        }
-        .hover-bg-light {
-            transition: background-color 0.2s ease;
-        }
-        .hover-bg-light:hover {
-            background-color: #f8f9fa;
-        }
-        .product-img-container {
-            height: 180px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
-        .product-img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
-        .product-name {
-            font-weight: 600;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .cart-form {
-            flex-shrink: 0;
-        }
-    </style>
     
     <footer class="bg-dark text-white py-4 mt-5">
         <div class="container">
@@ -354,5 +262,6 @@
     </footer>
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script th:src="@{/js/main.js}"></script>
 </body>
 </html> 

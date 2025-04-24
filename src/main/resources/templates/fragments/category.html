@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <!-- 카테고리 표시 프래그먼트 -->
+    <span th:fragment="category-badge(category)" class="badge rounded-pill"
+          th:text="${#strings.replace(category, '_', ' ')}"
+          th:classappend="${
+            #strings.equals(category, '프로그래밍') ? 'bg-primary' : 
+            #strings.equals(category, '데이터베이스') ? 'bg-success' : 
+            #strings.equals(category, '네트워크_보안') ? 'bg-danger' : 
+            #strings.equals(category, '시스템_운영') ? 'bg-warning' : 
+            #strings.equals(category, '인공지능_데이터과학') ? 'bg-info' : 
+            #strings.equals(category, '모바일_개발') ? 'bg-secondary' : 
+            #strings.equals(category, 'UI_UX') ? 'bg-light text-dark' : 
+            #strings.equals(category, 'DevOps') ? 'bg-dark' : 
+            #strings.equals(category, 'IoT_혁신기술') ? 'bg-primary bg-gradient' : 
+            #strings.equals(category, 'IT비즈니스') ? 'bg-success bg-gradient' : 
+            'bg-secondary'
+          }">
+        카테고리
+    </span>
+    
+    <!-- 카테고리 스타일 정의 -->
+    <style th:fragment="category-styles">
+        /* 배지 공통 스타일 */
+        .badge.rounded-pill {
+            padding: 0.35em 0.65em;
+            font-size: 0.75em;
+        }
+    </style>
+</body>
+</html> 

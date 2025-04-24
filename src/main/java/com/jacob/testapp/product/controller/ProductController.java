@@ -134,7 +134,15 @@ public class ProductController {
             
             cartService.findByUserWithItems(user.getId())
                     .ifPresentOrElse(
-                            cart -> model.addAttribute("cartItemCount", cart.getCartItems().size()),
+                            cart -> {
+                                model.addAttribute("cartItemCount", cart.getTotalQuantity());
+                                
+                                // 현금 잔액 검증
+                                if (user.getCashBalance() != null && 
+                                    cart.getTotalPrice().compareTo(java.math.BigDecimal.valueOf(user.getCashBalance())) > 0) {
+                                    model.addAttribute("balanceWarning", true);
+                                }
+                            },
                             () -> model.addAttribute("cartItemCount", 0)
                     );
         } catch (Exception e) {
